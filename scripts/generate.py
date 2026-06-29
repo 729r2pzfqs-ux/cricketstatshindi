@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import date
 import templates as TPL
 from templates import (T, FMT, FMT_DESC, SITE, BRAND_EN, esc, slug, hindi_name,
-                       fmt_badge, page)
+                       fmt_badge, page, icon)
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data" / "processed"
@@ -120,7 +120,7 @@ def build_home(index, records, ipl, teams_d):
     if champ and champ.get("champion"):
         champ_html = f"""<div class="rounded-2xl pitch-stripe text-white p-6 sm:p-8 mb-8">
           <div class="hi text-sm font-semibold opacity-90 mb-1">आईपीएल {champ['season']} चैंपियन</div>
-          <div class="font-heading font-extrabold text-2xl sm:text-3xl mb-3 hi">🏆 {esc(champ['champion'])}</div>
+          <div class="font-heading font-extrabold text-2xl sm:text-3xl mb-3 hi flex items-center gap-2.5">{icon('trophy','w-7 h-7')}{esc(champ['champion'])}</div>
           <div class="flex flex-wrap gap-x-8 gap-y-2 text-sm">
             <div><span class="hi opacity-80">सर्वाधिक रन:</span> <b>{esc(champ['top_run']['name'])}</b> ({champ['top_run']['runs']})</div>
             <div><span class="hi opacity-80">सर्वाधिक विकेट:</span> <b>{esc(champ['top_wkt']['name'])}</b> ({champ['top_wkt']['wkts']})</div>
@@ -283,7 +283,7 @@ def build_players_index(index):
                      f'{p["runs"]:,}', p["wkts"], p["m"]])
     body = f"""
     {section_title('सभी खिलाड़ी', f'करियर प्रदर्शन के अनुसार शीर्ष {N_LIST} खिलाड़ी — किसी भी नाम पर क्लिक करें')}
-    <div class="mb-4"><button onclick="CSH_search()" class="hi w-full sm:w-auto px-4 py-2.5 rounded-lg border border-cr-border bg-white text-cr-text text-left hover:border-cr-green">🔍 खिलाड़ी का नाम खोजें…</button></div>
+    <div class="mb-4"><button onclick="CSH_search()" class="hi w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-cr-border bg-white text-cr-text text-left hover:border-cr-green">{icon('search','w-4 h-4')}खिलाड़ी का नाम खोजें…</button></div>
     {table([T['rank'], T['player'], T['team'], T['format'], T['runs'], T['wkts'], T['m']], rows, align_right={4,5,6})}
     """
     desc = "क्रिकेट खिलाड़ियों की पूरी सूची — टेस्ट, वनडे, टी20आई और आईपीएल के बल्लेबाज़ी व गेंदबाज़ी आँकड़े, औसत और करियर रिकॉर्ड हिंदी में।"
@@ -517,16 +517,16 @@ def build_ipl_season(s):
     <div class="rounded-2xl pitch-stripe text-white p-6 sm:p-8 mb-6">
       <div class="hi text-sm font-semibold opacity-90">आईपीएल</div>
       <h1 class="hi font-heading font-extrabold text-3xl sm:text-4xl">सीज़न {season}</h1>
-      {f'<div class="hi text-xl mt-2">🏆 चैंपियन: <b>{esc(s["champion"])}</b></div>' if s.get("champion") else ''}
+      {f'<div class="hi text-xl mt-2 flex items-center gap-2">{icon("trophy","w-6 h-6")}<span>चैंपियन: <b>{esc(s["champion"])}</b></span></div>' if s.get("champion") else ''}
     </div>
     <div class="grid sm:grid-cols-2 gap-3 mb-6">
       <div class="bg-cr-card border border-cr-border rounded-xl p-5">
-        <div class="hi text-sm font-semibold text-cr-green mb-1">🟠 ऑरेंज कैप — सर्वाधिक रन</div>
+        <div class="hi text-sm font-semibold text-cr-green mb-1 flex items-center gap-1.5">{icon('cap','w-4 h-4','#f97316')}ऑरेंज कैप — सर्वाधिक रन</div>
         <div class="font-heading font-bold text-xl text-cr-ink">{plink(tr.get("id",""), tr.get("name","—"), depth)}</div>
         <div class="tnum text-2xl font-extrabold text-cr-ink mt-1">{tr.get("runs","—")} <span class="hi text-sm font-normal text-cr-text">रन</span></div>
       </div>
       <div class="bg-cr-card border border-cr-border rounded-xl p-5">
-        <div class="hi text-sm font-semibold text-cr-ball mb-1">🟣 पर्पल कैप — सर्वाधिक विकेट</div>
+        <div class="hi text-sm font-semibold text-cr-ball mb-1 flex items-center gap-1.5">{icon('cap','w-4 h-4','#7c3aed')}पर्पल कैप — सर्वाधिक विकेट</div>
         <div class="font-heading font-bold text-xl text-cr-ink">{plink(tw.get("id",""), tw.get("name","—"), depth)}</div>
         <div class="tnum text-2xl font-extrabold text-cr-ink mt-1">{tw.get("wkts","—")} <span class="hi text-sm font-normal text-cr-text">विकेट</span></div>
       </div>
@@ -753,7 +753,7 @@ def build_scorecard(mid, d):
       <div class="hi text-sm opacity-90">आईपीएल {season} · फ़ाइनल</div>
       <h1 class="hi font-heading font-extrabold text-2xl sm:text-3xl">{esc(' बनाम '.join(teams))}</h1>
       <div class="hi mt-2 opacity-90">{esc(venue)}</div>
-      {f'<div class="hi text-lg font-bold mt-2">🏆 {esc(winner)} {margin} विजयी</div>' if winner else ''}
+      {f'<div class="hi text-lg font-bold mt-2 flex items-center gap-2">{icon("trophy","w-5 h-5")}<span>{esc(winner)} {margin} विजयी</span></div>' if winner else ''}
       {f'<div class="hi text-sm mt-1 opacity-90">मैन ऑफ़ द मैच: <b>{esc(pom)}</b></div>' if pom else ''}
     </div>
     {innings_html}
