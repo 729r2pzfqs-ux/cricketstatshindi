@@ -27,6 +27,16 @@ PLAYER_HI_EXTRA = {
     "AN Cook": "एलेस्टेयर कुक", "KP Pietersen": "केविन पीटरसन",
     "MJ Clarke": "माइकल क्लार्क", "DJ Bravo": "ड्वेन ब्रावो",
     "MM Ali": "मोईन अली", "F du Plessis": "फ़ाफ़ डुप्लेसी",
+    "R Dravid": "राहुल द्रविड़", "VVS Laxman": "वीवीएस लक्ष्मण",
+    "A Kumble": "अनिल कुंबले", "SK Warne": "शेन वॉर्न",
+    "M Muralitharan": "मुथैया मुरलीधरन", "BC Lara": "ब्रायन लारा",
+    "GD McGrath": "ग्लेन मैकग्रा", "GJ Maxwell": "ग्लेन मैक्सवेल",
+    "DA Miller": "डेविड मिलर", "TA Boult": "ट्रेंट बोल्ट",
+    "Kuldeep Yadav": "कुलदीप यादव", "YS Chahal": "युज़वेंद्र चहल",
+    "Imran Tahir": "इमरान ताहिर", "Mohammed Siraj": "मोहम्मद सिराज",
+    "Mohammad Amir": "मोहम्मद आमिर", "Wahab Riaz": "वहाब रियाज़",
+    "Saeed Ajmal": "सईद अजमल", "Shaheen Shah Afridi": "शाहीन शाह अफ़रीदी",
+    "Mustafizur Rahman": "मुस्तफ़िज़ुर रहमान", "Fakhar Zaman": "फ़खर ज़मान",
 }
 
 # ---------------------------------------------------------------------------

@@ -564,31 +564,50 @@ def build_ipl_season(s):
 
 
 # ============================================================== COMPARE/H2H ==
-MARQUEE_PAIRS = [
-    ("ba607b88", "Rohit"), # placeholders replaced below by name lookup
-]
-
-
-def build_compare(full, index, pairs):
+def build_compare(full, index, grouped):
+    """Render the compare index (grouped by rivalry category) + one H2H page each."""
     depth = 1
-    cards = ""
-    for a, b in pairs:
-        pa, pb = full.get(a), full.get(b)
-        if not pa or not pb:
-            continue
-        cards += f"""<a href="{slug(pa['name'])}-vs-{slug(pb['name'])}/" class="block bg-cr-card border border-cr-border rounded-xl p-4 hover:border-cr-green hover:shadow-md transition">
-          <div class="flex items-center justify-between"><span class="font-heading font-bold text-cr-ink">{esc(pa['name'])}</span>
-          <span class="hi text-cr-green font-bold text-sm">बनाम</span>
-          <span class="font-heading font-bold text-cr-ink">{esc(pb['name'])}</span></div></a>"""
-    body = f"""{section_title('खिलाड़ी तुलना (हेड-टू-हेड)', 'दो खिलाड़ियों के करियर आँकड़ों की आमने-सामने तुलना')}
-      <div class="grid sm:grid-cols-2 gap-3">{cards}</div>"""
-    desc = "क्रिकेट खिलाड़ियों की हेड-टू-हेड तुलना हिंदी में — दो खिलाड़ियों के रन, औसत, स्ट्राइक रेट, विकेट और करियर आँकड़ों की आमने-सामने तुलना।"
+    seen = set()
+    flat = []
+    sections = ""
+    total = 0
+    for title, pairs in grouped:
+        cards = ""
+        cnt = 0
+        for a, b in pairs:
+            pa, pb = full.get(a), full.get(b)
+            if not pa or not pb:
+                continue
+            key = tuple(sorted([a, b]))
+            if key in seen:        # skip duplicates / reversed pairs across categories
+                continue
+            seen.add(key)
+            flat.append((a, b))
+            cnt += 1
+            cards += (f'<a href="{slug(pa["name"])}-vs-{slug(pb["name"])}/" '
+                      f'class="block bg-cr-card border border-cr-border rounded-xl p-4 hover:border-cr-green hover:shadow-md transition">'
+                      f'<div class="flex items-center justify-between gap-2">'
+                      f'<span class="font-heading font-bold text-cr-ink truncate">{esc(pa["name"])}</span>'
+                      f'<span class="hi text-cr-green font-bold text-sm shrink-0">बनाम</span>'
+                      f'<span class="font-heading font-bold text-cr-ink truncate text-right">{esc(pb["name"])}</span>'
+                      f'</div></a>')
+        if cards:
+            total += cnt
+            sections += (f'<div class="mb-8"><h2 class="hi font-heading font-bold text-lg sm:text-xl '
+                         f'text-cr-ink mb-3 flex items-center gap-2"><span class="w-1.5 h-6 rounded '
+                         f'pitch-stripe inline-block"></span>{title} '
+                         f'<span class="text-cr-text text-sm font-normal tnum">({cnt})</span></h2>'
+                         f'<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{cards}</div></div>')
+    body = f"""{section_title('खिलाड़ी तुलना (हेड-टू-हेड)', f'{total} चर्चित मुक़ाबले — दो खिलाड़ियों के करियर आँकड़ों की आमने-सामने तुलना')}
+      {sections}"""
+    desc = ("क्रिकेट खिलाड़ियों की हेड-टू-हेड तुलना हिंदी में — कोहली बनाम बाबर, सचिन बनाम पोंटिंग, "
+            f"बुमराह बनाम स्टार्क जैसे {total}+ मुक़ाबले। रन, औसत, स्ट्राइक रेट, विकेट और करियर आँकड़ों की आमने-सामने तुलना।")[:300]
     write("compare/index.html", page("खिलाड़ी तुलना — हेड-टू-हेड आँकड़े | क्रिकेट आँकड़े",
                                       desc, "/compare/", depth, body, active="compare",
                                       trail=[("होम", "../"), (T['compare'], None)]), "0.8")
-    search_rows.append(["खिलाड़ी तुलना", "/compare/", "पेज", "compare h2h head to head tulna"])
+    search_rows.append(["खिलाड़ी तुलना", "/compare/", "पेज", "compare h2h head to head tulna rivalry"])
 
-    for a, b in pairs:
+    for a, b in flat:
         if full.get(a) and full.get(b):
             build_h2h(full[a], full[b])
 
@@ -1283,24 +1302,96 @@ def main():
     ipl = load("ipl.json")
     teams_d = load("teams.json")
 
-    # build name->id for marquee pairs
+    # build name->id for matchup pairs (prefer the most-capped namesake)
     name2id = {}
     for pid, p in full.items():
-        name2id.setdefault(p["name"], pid)
+        n = p["name"]
+        if n not in name2id or p["total_m"] > full[name2id[n]]["total_m"]:
+            name2id[n] = pid
     def pid_of(n): return name2id.get(n)
-    marquee = [
-        ("V Kohli", "RG Sharma"), ("V Kohli", "Babar Azam"),
-        ("V Kohli", "SPD Smith"), ("V Kohli", "KS Williamson"),
-        ("RG Sharma", "DA Warner"), ("Babar Azam", "KS Williamson"),
-        ("JJ Bumrah", "Rashid Khan"), ("R Ashwin", "RA Jadeja"),
-        ("JM Anderson", "SCJ Broad"), ("MA Starc", "PJ Cummins"),
-        ("AB de Villiers", "CH Gayle"), ("MS Dhoni", "JC Buttler"),
-        ("KL Rahul", "Shubman Gill"), ("HH Pandya", "RA Jadeja"),
-        ("AD Russell", "KA Pollard"), ("SP Narine", "Rashid Khan"),
-        ("V Kohli", "AB de Villiers"), ("RG Sharma", "Q de Kock"),
+    # ---- head-to-head rivalry matchups, grouped by theme ----
+    H2H_CATEGORIES = [
+        ("आधुनिक बल्लेबाज़ी प्रतिद्वंद्विताएँ", [
+            ("V Kohli","RG Sharma"),("V Kohli","Babar Azam"),("V Kohli","SPD Smith"),
+            ("V Kohli","KS Williamson"),("V Kohli","JE Root"),("V Kohli","DA Warner"),
+            ("V Kohli","AB de Villiers"),("V Kohli","Q de Kock"),("V Kohli","HM Amla"),
+            ("JE Root","SPD Smith"),("JE Root","KS Williamson"),("JE Root","Babar Azam"),
+            ("JE Root","KP Pietersen"),
+            ("SPD Smith","KS Williamson"),("SPD Smith","Babar Azam"),("SPD Smith","AB de Villiers"),
+            ("KS Williamson","HM Amla"),("Babar Azam","DA Warner"),("Babar Azam","KS Williamson"),
+            ("RG Sharma","DA Warner"),("RG Sharma","V Sehwag"),("RG Sharma","HM Amla"),
+            ("RG Sharma","Babar Azam"),("RG Sharma","Q de Kock"),
+            ("DA Warner","Q de Kock"),("DA Warner","HM Amla"),
+            ("S Dhawan","RG Sharma"),("S Dhawan","KL Rahul"),
+            ("SA Yadav","Shubman Gill"),("SA Yadav","RG Sharma"),
+            ("Mohammad Rizwan","Babar Azam"),("Mohammad Rizwan","Q de Kock"),
+            ("Fakhar Zaman","Babar Azam"),
+        ]),
+        ("दिग्गज बल्लेबाज़ — क्लासिक युग", [
+            ("SR Tendulkar","RT Ponting"),("SR Tendulkar","BC Lara"),("SR Tendulkar","JH Kallis"),
+            ("SR Tendulkar","R Dravid"),("SR Tendulkar","KC Sangakkara"),("SR Tendulkar","V Sehwag"),
+            ("SR Tendulkar","V Kohli"),("SR Tendulkar","AN Cook"),
+            ("RT Ponting","BC Lara"),("RT Ponting","JH Kallis"),("RT Ponting","KC Sangakkara"),
+            ("RT Ponting","SPD Smith"),
+            ("BC Lara","KC Sangakkara"),("BC Lara","DPMD Jayawardene"),("BC Lara","V Kohli"),
+            ("KC Sangakkara","DPMD Jayawardene"),("KC Sangakkara","JH Kallis"),("KC Sangakkara","AB de Villiers"),
+            ("JH Kallis","R Dravid"),("R Dravid","VVS Laxman"),("R Dravid","KC Sangakkara"),
+            ("V Sehwag","CH Gayle"),("V Sehwag","HM Amla"),
+            ("HM Amla","GC Smith"),("GC Smith","AN Cook"),("AN Cook","KP Pietersen"),
+        ]),
+        ("गेंदबाज़ी प्रतिद्वंद्विताएँ", [
+            ("JJ Bumrah","MA Starc"),("JJ Bumrah","K Rabada"),("JJ Bumrah","PJ Cummins"),
+            ("JJ Bumrah","Mohammed Shami"),("JJ Bumrah","TA Boult"),("JJ Bumrah","Shaheen Shah Afridi"),
+            ("JJ Bumrah","Rashid Khan"),("JJ Bumrah","SL Malinga"),("JJ Bumrah","GD McGrath"),
+            ("MA Starc","K Rabada"),("MA Starc","TA Boult"),("MA Starc","PJ Cummins"),
+            ("PJ Cummins","K Rabada"),("PJ Cummins","TA Boult"),
+            ("R Ashwin","NM Lyon"),("R Ashwin","Harbhajan Singh"),("R Ashwin","A Kumble"),
+            ("R Ashwin","M Muralitharan"),("R Ashwin","SK Warne"),
+            ("JM Anderson","SCJ Broad"),("JM Anderson","DW Steyn"),("JM Anderson","GD McGrath"),
+            ("SCJ Broad","DW Steyn"),("DW Steyn","GD McGrath"),("DW Steyn","K Rabada"),
+            ("M Muralitharan","SK Warne"),("M Muralitharan","A Kumble"),("M Muralitharan","Harbhajan Singh"),
+            ("M Muralitharan","NM Lyon"),
+            ("SK Warne","A Kumble"),("SK Warne","NM Lyon"),("A Kumble","Harbhajan Singh"),
+            ("Rashid Khan","Imran Tahir"),("Rashid Khan","SP Narine"),("Rashid Khan","YS Chahal"),
+            ("Rashid Khan","Kuldeep Yadav"),("Rashid Khan","SL Malinga"),("Rashid Khan","Mustafizur Rahman"),
+            ("YS Chahal","Kuldeep Yadav"),
+            ("TA Boult","Shaheen Shah Afridi"),
+            ("Mohammed Shami","Mohammed Siraj"),("Mohammad Amir","Wahab Riaz"),
+            ("Saeed Ajmal","Shakib Al Hasan"),
+        ]),
+        ("ऑलराउंडर व क्रॉस-डिसिप्लिन तुलना", [
+            ("Shakib Al Hasan","RA Jadeja"),("Shakib Al Hasan","R Ashwin"),("Shakib Al Hasan","HH Pandya"),
+            ("Shakib Al Hasan","BA Stokes"),("Shakib Al Hasan","JH Kallis"),
+            ("BA Stokes","HH Pandya"),("BA Stokes","RA Jadeja"),
+            ("HH Pandya","RA Jadeja"),("RA Jadeja","R Ashwin"),
+            ("MM Ali","RA Jadeja"),("MM Ali","R Ashwin"),
+            ("AD Russell","KA Pollard"),("AD Russell","SP Narine"),("AD Russell","DJ Bravo"),
+            ("DJ Bravo","KA Pollard"),
+        ]),
+        ("आईपीएल सितारों के मुक़ाबले", [
+            ("V Kohli","MS Dhoni"),("V Kohli","SK Raina"),
+            ("RG Sharma","MS Dhoni"),
+            ("MS Dhoni","SK Raina"),("MS Dhoni","AB de Villiers"),("MS Dhoni","RR Pant"),
+            ("MS Dhoni","JC Buttler"),("MS Dhoni","KC Sangakkara"),("MS Dhoni","Q de Kock"),
+            ("AD Russell","HH Pandya"),("GJ Maxwell","AD Russell"),("GJ Maxwell","HH Pandya"),
+            ("KL Rahul","Shubman Gill"),("DA Warner","CH Gayle"),("CH Gayle","AB de Villiers"),
+            ("SK Raina","RG Sharma"),("RR Pant","KL Rahul"),("Shubman Gill","RR Pant"),
+            ("SA Yadav","RR Pant"),
+            ("Yuvraj Singh","SK Raina"),("Yuvraj Singh","MS Dhoni"),
+            ("DA Miller","KA Pollard"),
+            ("Q de Kock","JC Buttler"),("JC Buttler","DA Warner"),("JC Buttler","RG Sharma"),
+            ("Q de Kock","Mohammad Rizwan"),
+            ("SP Narine","Rashid Khan"),
+        ]),
     ]
-    pairs = [(pid_of(a), pid_of(b)) for a, b in marquee]
-    pairs = [(a, b) for a, b in pairs if a and b]
+    grouped = []
+    for title, pl in H2H_CATEGORIES:
+        g = []
+        for a, b in pl:
+            ia, ib = pid_of(a), pid_of(b)
+            if ia and ib and ia != ib:
+                g.append((ia, ib))
+        grouped.append((title, g))
 
     print("Building homepage…")
     build_home(index, records, ipl, teams_d)
@@ -1318,7 +1409,7 @@ def main():
     print("Building IPL…")
     build_ipl(ipl, records, teams_d)
     print("Building compare/H2H…")
-    build_compare(full, index, pairs)
+    build_compare(full, index, grouped)
     print("Building scorecards…")
     build_matches()
     print("Building 'आज के दिन' (This Day in Cricket)…")
