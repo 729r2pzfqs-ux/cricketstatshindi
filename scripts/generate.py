@@ -780,15 +780,10 @@ def write_static():
         '<circle cx="32" cy="32" r="28" fill="url(#s)"/>'
         '<path d="M31 7 Q25 19.5 31 32 T31 57" fill="none" stroke="#F5E6D0" stroke-width="1.8" stroke-linecap="round"/>'
         '<path d="M35 7 Q29 19.5 35 32 T35 57" fill="none" stroke="#F5E6D0" stroke-width="1.8" stroke-linecap="round"/>'
-        '<line x1="28" y1="11" x2="36" y2="11" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="27" y1="16" x2="35" y2="16" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="26" y1="21" x2="34" y2="21" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="28" y1="26" x2="36" y2="26" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="29" y1="31" x2="37" y2="31" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="30" y1="36" x2="38" y2="36" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="32" y1="41" x2="40" y2="41" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="32" y1="46" x2="40" y2="46" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="31" y1="51" x2="39" y2="51" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/></svg>')
+        '<line x1="24" y1="16" x2="36" y2="16" stroke="#F5E6D0" stroke-width="1.6" stroke-linecap="round"/>'
+        '<line x1="25" y1="27" x2="37" y2="27" stroke="#F5E6D0" stroke-width="1.6" stroke-linecap="round"/>'
+        '<line x1="29" y1="38" x2="41" y2="38" stroke="#F5E6D0" stroke-width="1.6" stroke-linecap="round"/>'
+        '<line x1="30" y1="49" x2="42" y2="49" stroke="#F5E6D0" stroke-width="1.6" stroke-linecap="round"/></svg>')
     # search.js
     (OUT / "search.js").write_text(SEARCH_JS, encoding="utf-8")
     # search index
