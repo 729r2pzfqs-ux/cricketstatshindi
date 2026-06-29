@@ -210,10 +210,11 @@ def nav(depth, active=""):
         ("records", up + "records/", "records"),
         ("compare", up + "compare/", "compare"),
         ("matches", up + "matches/", "matches"),
+        ("thisday", up + "aaj-ke-din/", "thisday"),
     ]
     def label(key):
         return {"IPL": "आईपीएल", "Test": "टेस्ट", "ODI": "वनडे",
-                "T20I": "टी20आई"}.get(key, T.get(key, key))
+                "T20I": "टी20आई", "thisday": "आज के दिन"}.get(key, T.get(key, key))
     links = ""
     mlinks = ""
     for key, href, act in items:
@@ -280,7 +281,7 @@ def footer(depth):
     </div>
     {col("प्रारूप", [("आईपीएल", up+"ipl/"), ("टेस्ट", up+"test/"), ("वनडे", up+"odi/"), ("टी20आई", up+"t20i/")])}
     {col("खोजें", [("खिलाड़ी", up+"players/"), ("टीमें", up+"teams/"), ("रिकॉर्ड", up+"records/"), ("तुलना", up+"compare/")])}
-    {col("अधिक", [("मैच", up+"matches/"), ("हमारे बारे में", up+"about/"), ("गोपनीयता नीति", up+"privacy/"), ("होम", up)])}
+    {col("अधिक", [("मैच", up+"matches/"), ("आज के दिन", up+"aaj-ke-din/"), ("हमारे बारे में", up+"about/"), ("गोपनीयता नीति", up+"privacy/")])}
   </div>
   <div class="border-t border-cr-border pt-6 text-center text-sm text-cr-text">
     <p class="hi mb-1">डेटा स्रोत: <a href="https://cricsheet.org" class="text-cr-green hover:underline" rel="noopener">Cricsheet.org</a> — ओपन-सोर्स बॉल-बाय-बॉल क्रिकेट डेटा।</p>

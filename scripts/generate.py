@@ -12,6 +12,7 @@ import templates as TPL
 from templates import (T, FMT, FMT_DESC, SITE, BRAND_EN, esc, slug, hindi_name,
                        fmt_badge, page, icon)
 import content as C
+import thisday as TD
 
 # merge the extra curated Devanagari player names into the shared dictionary
 TPL.HINDI_NAMES.update(C.PLAYER_HI_EXTRA)
@@ -939,6 +940,340 @@ document.addEventListener('keydown',e=>{if((e.key==='/'||((e.metaKey||e.ctrlKey)
 """
 
 
+# ====================================================== आज के दिन / THIS DAY ===
+MONTHS_HI = ["", "जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई",
+             "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"]
+DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+
+def _canonical_days():
+    """Ordered list of all 366 (month, day) pairs (Feb has 29)."""
+    out = []
+    for mo in range(1, 13):
+        for da in range(1, DAYS_IN_MONTH[mo] + 1):
+            out.append((mo, da))
+    return out
+
+
+def _td_dayslug(mo, da):
+    return f"{mo:02d}-{da:02d}"
+
+
+def _td_score(m):
+    """Importance score used to pick which matches to surface for a day."""
+    s = 0.0
+    fmt = m["fmt"]
+    s += {"Test": 4, "ODI": 3.5, "IPL": 3, "T20I": 1.5}.get(fmt, 1)
+    teams = m.get("teams", [])
+    if "India" in teams:
+        s += 6
+    ev = (m.get("event", "") + " " + m.get("stage", "")).lower()
+    stage = m.get("stage", "").lower()
+    if "final" in stage and "semi" not in stage:
+        s += 8
+    elif any(k in stage for k in ("semi", "qualifier", "eliminator")):
+        s += 4
+    if any(k in ev for k in ("world cup", "world t20", "champions trophy",
+                             "world test championship", "asia cup", "t20 world")):
+        s += 3
+    # standout individual milestones on the day
+    best_bat = max((b[1] for b in m.get("batting", [])), default=0)
+    best_bowl = max((b[1] for b in m.get("bowling", [])), default=0)
+    if best_bat >= 200:
+        s += 5
+    elif best_bat >= 100:
+        s += 2.5
+    if best_bowl >= 7:
+        s += 4
+    elif best_bowl >= 5:
+        s += 2.5
+    # gentle recency nudge so memorable modern games edge ahead of ties
+    s += (m["year"] - 2000) * 0.04
+    return s
+
+
+def build_thisday(index, full):
+    """Build the /aaj-ke-din/ index + 366 day pages from raw match data."""
+    print("Scanning raw matches for 'आज के दिन'…")
+    matches = TD.scan_matches()
+    buckets = TD.aggregate_by_day(matches)
+
+    # name -> player id, but only for players that actually have a profile page
+    name2id = {}
+    for p in index[:N_PLAYERS]:
+        name2id.setdefault(p["name"], p["id"])
+    team_slugs = {slug(t) for t in load("teams.json").keys()}
+
+    def plink_name(name, depth):
+        pid = name2id.get(name)
+        hn = hindi_name(name)
+        sub = f' <span class="hi text-cr-text text-xs">{hn}</span>' if hn else ""
+        if pid:
+            return (f'<a href="{"../"*depth}players/{pid}/" '
+                    f'class="font-medium text-cr-ink hover:text-cr-green">{esc(name)}</a>{sub}')
+        return f'<span class="font-medium text-cr-ink">{esc(name)}</span>{sub}'
+
+    def tlink(name, depth):
+        if slug(name) in team_slugs:
+            return (f'<a href="{"../"*depth}teams/{slug(name)}/" '
+                    f'class="text-cr-ink hover:text-cr-green hi font-medium">{esc(name)}</a>')
+        return f'<span class="text-cr-ink hi font-medium">{esc(name)}</span>'
+
+    canon = _canonical_days()
+    n_days = len(canon)
+
+    # ---------------- per-day pages ----------------
+    for i, (mo, da) in enumerate(canon):
+        depth = 2
+        day_matches = buckets.get((mo, da), [])
+        date_label = f"{da} {MONTHS_HI[mo]}"
+        slug_day = _td_dayslug(mo, da)
+        prev_mo, prev_da = canon[(i - 1) % n_days]
+        next_mo, next_da = canon[(i + 1) % n_days]
+
+        # rank + split
+        ranked = sorted(day_matches, key=_td_score, reverse=True)
+        years = sorted({m["year"] for m in day_matches})
+        n_total = len(day_matches)
+        fmt_counts = {}
+        for m in day_matches:
+            fmt_counts[m["fmt"]] = fmt_counts.get(m["fmt"], 0) + 1
+
+        # ---- standout performances across the whole day ----
+        cents = []   # (runs, balls, player, batting_team, opp, year, fmt)
+        hauls = []   # (wkts, runs, balls, player, bowling_team, opp, year, fmt)
+        for m in day_matches:
+            t = m.get("teams", [])
+            def opp_of(team):
+                others = [x for x in t if x != team]
+                return others[0] if others else ""
+            for (pl, runs, balls, team) in m.get("batting", []):
+                if runs >= 100:
+                    cents.append((runs, balls, pl, team, opp_of(team), m["year"], m["fmt"]))
+            for (pl, wk, runs, balls, team) in m.get("bowling", []):
+                if wk >= 5:
+                    hauls.append((wk, runs, balls, pl, team, opp_of(team), m["year"], m["fmt"]))
+        cents.sort(reverse=True)
+        hauls.sort(key=lambda x: (x[0], -x[1]), reverse=True)
+
+        # ---------- prose intro ----------
+        fmt_phrase = "、".join(
+            f"{fmt_counts[f]} {FMT[f][0]}" for f in ["Test", "ODI", "T20I", "IPL"]
+            if fmt_counts.get(f))
+        if years:
+            span = (f"{years[0]} से {years[-1]} के बीच"
+                    if years[0] != years[-1] else f"{years[0]} में")
+        else:
+            span = ""
+        intro_bits = [
+            f"क्रिकेट के इतिहास में <strong>{date_label}</strong> का दिन कई "
+            f"यादगार मुक़ाबलों का गवाह रहा है।"]
+        if n_total:
+            intro_bits.append(
+                f"हमारे रिकॉर्ड के अनुसार {span} इस तारीख़ को कुल "
+                f"<strong>{n_total}</strong> पुरुष अंतरराष्ट्रीय व आईपीएल मैच खेले गए"
+                + (f" — इनमें {fmt_phrase} शामिल हैं।" if fmt_phrase else "।"))
+        if cents:
+            r, _b, pl, tm, opp, yr, fk = cents[0]
+            intro_bits.append(
+                f"बल्लेबाज़ी में सबसे बड़ी पारी {yr} में {esc(pl)} ने {tm} की ओर से "
+                f"{opp or 'विपक्षी टीम'} के ख़िलाफ़ खेली — <strong>{r}</strong> रन।")
+        elif hauls:
+            wk, rn, _bl, pl, tm, opp, yr, fk = hauls[0]
+            intro_bits.append(
+                f"गेंदबाज़ी में सबसे यादगार प्रदर्शन {yr} में {esc(pl)} का रहा — "
+                f"<strong>{wk}/{rn}</strong>।")
+        intro = " ".join(intro_bits)
+
+        body = f"""
+        <div class="rounded-2xl pitch-stripe text-white p-6 sm:p-8 mb-6">
+          <div class="hi text-sm opacity-90 mb-1">आज के दिन क्रिकेट में</div>
+          <h1 class="hi font-heading font-extrabold text-3xl sm:text-4xl">{date_label} को क्रिकेट में</h1>
+          <p class="hi mt-3 text-white/95 leading-relaxed max-w-3xl">{intro}</p>
+        </div>
+        """
+
+        # quick stat strip
+        if n_total:
+            body += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">'
+            body += stat("कुल मैच", n_total, "इस तारीख़ को")
+            body += stat("शतक", len(cents), "100+ की पारियाँ")
+            body += stat("5 विकेट हॉल", len(hauls), "पारी में")
+            body += stat("वर्ष", f"{years[0]}–{years[-1]}" if len(years) > 1 else (str(years[0]) if years else "—"), "रिकॉर्ड अवधि")
+            body += "</div>"
+
+        # standout performances
+        if cents or hauls:
+            body += section_title("इस दिन के यादगार प्रदर्शन",
+                                  "इस तारीख़ को खेली गई बड़ी पारियाँ और बेहतरीन गेंदबाज़ी")
+            body += '<div class="grid md:grid-cols-2 gap-5 mb-8">'
+            if cents:
+                rows = []
+                for (r, b, pl, tm, opp, yr, fk) in cents[:8]:
+                    vs = f'{tlink(opp, depth)}' if opp else "—"
+                    rows.append([plink_name(pl, depth),
+                                 f'<b class="tnum">{r}</b>'
+                                 + (f' <span class="text-cr-text text-xs tnum">({b})</span>' if b else ''),
+                                 vs, f'<span class="tnum">{yr}</span> {fmt_badge(fk)}'])
+                body += ('<div><h3 class="hi font-heading font-bold text-cr-ink mb-2">बड़ी पारियाँ (शतक)</h3>'
+                         + table(["बल्लेबाज़", "रन", "बनाम", "वर्ष"], rows, align_right={1}) + "</div>")
+            if hauls:
+                rows = []
+                for (wk, rn, bl, pl, tm, opp, yr, fk) in hauls[:8]:
+                    vs = f'{tlink(opp, depth)}' if opp else "—"
+                    rows.append([plink_name(pl, depth),
+                                 f'<b class="tnum">{wk}/{rn}</b>',
+                                 vs, f'<span class="tnum">{yr}</span> {fmt_badge(fk)}'])
+                body += ('<div><h3 class="hi font-heading font-bold text-cr-ink mb-2">बेहतरीन गेंदबाज़ी (5+ विकेट)</h3>'
+                         + table(["गेंदबाज़", "आँकड़े", "बनाम", "वर्ष"], rows, align_right={1}) + "</div>")
+            body += "</div>"
+
+        # notable matches
+        if ranked:
+            show = ranked[:16]
+            body += section_title("उल्लेखनीय मैच",
+                                  f"{date_label} को खेले गए चुनिंदा मुक़ाबले" +
+                                  (f" — कुल {n_total} में से शीर्ष {len(show)}" if n_total > len(show) else ""))
+            body += '<div class="space-y-3 mb-6">'
+            for m in show:
+                teams = m.get("teams", [])
+                if len(teams) == 2:
+                    vs = f'{tlink(teams[0], depth)} <span class="hi text-cr-text">बनाम</span> {tlink(teams[1], depth)}'
+                else:
+                    vs = " बनाम ".join(tlink(t, depth) for t in teams) or "—"
+                if m["winner"]:
+                    result = f'<span class="hi text-cr-green font-semibold">{tlink(m["winner"], depth)} {esc(m["margin"])} विजयी</span>'
+                else:
+                    result = f'<span class="hi text-cr-text font-medium">{esc(m["margin"] or "—")}</span>'
+                meta = []
+                if m.get("event"):
+                    ev = m["event"]
+                    if m.get("stage"):
+                        ev += f' · {m["stage"]}'
+                    meta.append(esc(ev))
+                loc = m.get("city") or m.get("venue")
+                if loc:
+                    meta.append(esc(loc))
+                meta_line = " · ".join(meta)
+                # top perf snippet for this match
+                perf = []
+                top_bat = max(m.get("batting", []), key=lambda x: x[1], default=None)
+                if top_bat and top_bat[1] >= 50:
+                    perf.append(f'{plink_name(top_bat[0], depth)} {top_bat[1]}'
+                                + (f' ({top_bat[2]})' if top_bat[2] else ''))
+                top_bowl = max(m.get("bowling", []), key=lambda x: (x[1], -x[2]), default=None)
+                if top_bowl and top_bowl[1] >= 4:
+                    perf.append(f'{plink_name(top_bowl[0], depth)} {top_bowl[1]}/{top_bowl[2]}')
+                perf_line = (' <span class="hi text-cr-text">·</span> '.join(perf))
+                pom = ", ".join(m.get("pom", []))
+                pom_line = (f'<div class="hi text-xs text-cr-text mt-1">मैन ऑफ़ द मैच: '
+                            f'{plink_name(m["pom"][0], depth) if m.get("pom") else ""}</div>'
+                            if pom else "")
+                body += f"""<div class="bg-cr-card border border-cr-border rounded-xl p-4 hover:border-cr-green transition">
+                  <div class="flex items-center justify-between gap-3 flex-wrap mb-1">
+                    <div class="flex items-center gap-2">{fmt_badge(m["fmt"])}<span class="tnum text-sm font-bold text-cr-ink">{m["year"]}</span></div>
+                    {f'<div class="hi text-xs text-cr-text">{meta_line}</div>' if meta_line else ''}
+                  </div>
+                  <div class="hi text-base mb-1">{vs}</div>
+                  <div>{result}</div>
+                  {f'<div class="hi text-sm text-cr-text mt-1">शीर्ष प्रदर्शन: {perf_line}</div>' if perf_line else ''}
+                  {pom_line}
+                </div>"""
+            body += "</div>"
+            if n_total > len(show):
+                body += (f'<p class="hi text-sm text-cr-text mb-6">और भी '
+                         f'<strong>{n_total - len(show)}</strong> मैच इस तारीख़ को खेले गए। '
+                         f'ऊपर महत्व के आधार पर चुनिंदा मुक़ाबले दिखाए गए हैं।</p>')
+        else:
+            body += ('<p class="hi text-cr-text mb-6">इस तारीख़ के लिए हमारे डेटाबेस में '
+                     'अभी कोई मैच दर्ज नहीं है।</p>')
+
+        # prev / next nav
+        body += f"""
+        <nav class="flex items-center justify-between gap-3 border-t border-cr-border pt-5 mt-4">
+          <a href="../{_td_dayslug(prev_mo, prev_da)}/" class="hi inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-cr-border hover:border-cr-green hover:text-cr-green transition">
+            <span aria-hidden="true">←</span> {prev_da} {MONTHS_HI[prev_mo]}</a>
+          <a href="../" class="hi px-4 py-2 rounded-lg bg-cr-bg border border-cr-border hover:border-cr-green text-cr-ink font-medium">सभी तारीख़ें</a>
+          <a href="../{_td_dayslug(next_mo, next_da)}/" class="hi inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-cr-border hover:border-cr-green hover:text-cr-green transition">
+            {next_da} {MONTHS_HI[next_mo]} <span aria-hidden="true">→</span></a>
+        </nav>
+        """
+
+        # SEO
+        title = f"{date_label} को क्रिकेट में — आज के दिन क्रिकेट इतिहास | क्रिकेट आँकड़े"
+        teams_in_top = []
+        for m in ranked[:4]:
+            teams_in_top.extend(m.get("teams", []))
+        teams_seen = []
+        for t in teams_in_top:
+            if t not in teams_seen:
+                teams_seen.append(t)
+        desc = (f"{date_label} को क्रिकेट इतिहास में क्या हुआ? इस तारीख़ को खेले गए "
+                f"{n_total} टेस्ट, वनडे, टी20आई व आईपीएल मैच, बड़ी पारियाँ, 5 विकेट हॉल "
+                f"और रिकॉर्ड — सब हिंदी में।")[:300]
+        jsonld = {
+            "@context": "https://schema.org", "@type": "CollectionPage",
+            "name": f"{date_label} को क्रिकेट में",
+            "inLanguage": "hi", "url": f"{SITE}/aaj-ke-din/{slug_day}/",
+            "description": desc,
+        }
+        write(f"aaj-ke-din/{slug_day}/index.html",
+              page(title, desc, f"/aaj-ke-din/{slug_day}/", depth, body,
+                   active="thisday",
+                   trail=[("होम", "../../"), ("आज के दिन", "../"), (date_label, None)],
+                   jsonld=jsonld, og_type="article"), "0.5")
+
+    # search entry (one combined, plus a few marquee dates handled by index)
+    search_rows.append(["आज के दिन क्रिकेट में", "/aaj-ke-din/", "फ़ीचर",
+                        "aaj ke din this day in cricket history on this day"])
+
+    # ---------------- index / calendar page ----------------
+    depth = 1
+    total_matches = len(matches)
+    body = f"""
+    <div class="rounded-2xl pitch-stripe text-white p-6 sm:p-8 mb-6">
+      <div class="hi text-sm opacity-90 mb-1">फ़ीचर</div>
+      <h1 class="hi font-heading font-extrabold text-3xl sm:text-4xl">आज के दिन क्रिकेट में</h1>
+      <p class="hi mt-3 text-white/95 leading-relaxed max-w-3xl">
+        साल के हर दिन क्रिकेट के मैदान पर कुछ न कुछ ख़ास घटित हुआ है — कोई यादगार पारी,
+        कोई ऐतिहासिक जीत या कोई टूटता हुआ रिकॉर्ड। नीचे किसी भी तारीख़ पर क्लिक करके
+        जानिए उस दिन क्रिकेट इतिहास में क्या-क्या हुआ। हमारे डेटाबेस में
+        <strong>{total_matches:,}</strong> पुरुष अंतरराष्ट्रीय व आईपीएल मैच शामिल हैं।
+      </p>
+    </div>
+    """
+    # today's shortcut
+    t = date.today()
+    today_slug = _td_dayslug(t.month, t.day)
+    body += (f'<div class="mb-8"><a href="{today_slug}/" '
+             f'class="hi inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cr-green text-white font-semibold hover:bg-cr-dark transition">'
+             f'{icon("trophy","w-5 h-5")} आज — {t.day} {MONTHS_HI[t.month]} — देखें</a></div>')
+
+    body += section_title("तारीख़ चुनें", "महीने के अनुसार किसी भी दिन की क्रिकेट कहानी पढ़ें")
+    body += '<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">'
+    for mo in range(1, 13):
+        cells = ""
+        for da in range(1, DAYS_IN_MONTH[mo] + 1):
+            cells += (f'<a href="{_td_dayslug(mo, da)}/" '
+                      f'class="tnum flex items-center justify-center h-9 rounded-md border border-cr-border '
+                      f'text-sm text-cr-ink hover:bg-cr-green hover:text-white hover:border-cr-green transition">{da}</a>')
+        body += (f'<div class="bg-cr-card border border-cr-border rounded-xl p-4">'
+                 f'<h3 class="hi font-heading font-bold text-cr-ink mb-3">{MONTHS_HI[mo]}</h3>'
+                 f'<div class="grid grid-cols-7 gap-1.5">{cells}</div></div>')
+    body += "</div>"
+
+    desc = ("आज के दिन क्रिकेट में — साल के हर दिन क्रिकेट इतिहास में हुई यादगार घटनाएँ, "
+            "मैच, बड़ी पारियाँ और रिकॉर्ड हिंदी में। किसी भी तारीख़ पर क्लिक करें।")
+    jsonld = {"@context": "https://schema.org", "@type": "CollectionPage",
+              "name": "आज के दिन क्रिकेट में", "inLanguage": "hi",
+              "url": f"{SITE}/aaj-ke-din/", "description": desc}
+    write("aaj-ke-din/index.html",
+          page("आज के दिन क्रिकेट में — हर तारीख़ का क्रिकेट इतिहास | क्रिकेट आँकड़े",
+               desc, "/aaj-ke-din/", depth, body, active="thisday",
+               trail=[("होम", "../"), ("आज के दिन", None)], jsonld=jsonld), "0.8")
+    print(f"Built 'आज के दिन': {n_days} day pages + index.")
+
+
 # ===================================================================== MAIN ===
 def main():
     print("Loading processed data…")
@@ -986,6 +1321,8 @@ def main():
     build_compare(full, index, pairs)
     print("Building scorecards…")
     build_matches()
+    print("Building 'आज के दिन' (This Day in Cricket)…")
+    build_thisday(index, full)
     print("Building about + privacy…")
     build_about()
     build_privacy()
