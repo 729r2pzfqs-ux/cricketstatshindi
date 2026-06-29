@@ -29,6 +29,10 @@ N_PLAYERS = 500                  # top players by impact get full profiles
 N_LIST = 300                     # rows shown on /players/ listing
 TODAY = date.today().isoformat()
 
+# IndexNow key — published at /<key>.txt so Bing/Yandex can verify ownership
+# when scripts/indexnow.py submits updated URLs. Keep in sync with that file.
+INDEXNOW_KEY = "bec9a8baaba12e5397988c4017e88088"
+
 urls = []        # (path, priority) for sitemap
 search_rows = [] # [title, url, section, keywords]
 
@@ -81,9 +85,22 @@ def table(headers, rows, align_right=None):
             f'<tr>{thead}</tr></thead><tbody>{body}</tbody></table></div>')
 
 
+# Player ids that have a generated profile page (top N_PLAYERS). Populated at
+# the start of main() so every link helper can gate on it.
+_PAGE_PIDS = set()
+
+
 def plink(pid, name, depth, extra=""):
+    """Link to a player's profile if it exists, else render plain text.
+
+    Only the top N_PLAYERS get profile pages, so team rosters and records
+    leaderboards reference ~1,600 players without pages. Gating here keeps
+    those references as plain text instead of broken links.
+    """
     hn = hindi_name(name)
     sub = f'<span class="hi text-cr-text text-xs ml-1">{hn}</span>' if hn else ""
+    if not pid or pid not in _PAGE_PIDS:
+        return f'<span class="font-medium text-cr-ink">{esc(name)}</span>{sub}{extra}'
     return f'<a href="{player_url(pid, depth)}" class="font-medium text-cr-ink hover:text-cr-green">{esc(name)}</a>{sub}{extra}'
 
 
@@ -1384,6 +1401,93 @@ def build_privacy():
 
 
 # ============================================================ STATIC ASSETS ==
+def write_og_image():
+    """Generate the 1200x630 Open Graph share image (og-image.png) with Pillow.
+
+    Cricket-themed: dark maroon (#8B1A1A) background, a stitched cricket ball,
+    and the English site name (kept Latin so Pillow needs no complex-script
+    shaping). Referenced by every page's <meta property="og:image">.
+    """
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+    W, H = 1200, 630
+    MAROON = (139, 26, 26)          # #8B1A1A
+    MAROON_DARK = (74, 14, 14)      # #4A0E0E
+    CREAM = (245, 230, 208)         # #F5E6D0 seam / accent
+    GREEN = (34, 197, 94)           # #22c55e brand accent
+
+    img = Image.new("RGB", (W, H), MAROON)
+    draw = ImageDraw.Draw(img)
+
+    # --- subtle vertical darkening towards the bottom for depth ---
+    grad = Image.new("L", (1, H), 0)
+    for y in range(H):
+        grad.putpixel((0, y), int(70 * (y / H)))
+    grad = grad.resize((W, H))
+    img = Image.composite(Image.new("RGB", (W, H), MAROON_DARK), img, grad)
+    draw = ImageDraw.Draw(img)
+
+    # --- cricket ball on the right, drawn at 4x then downscaled (anti-alias) ---
+    S = 4
+    bd = 360 * S                       # ball diameter (hi-res)
+    ball = Image.new("RGBA", (bd, bd), (0, 0, 0, 0))
+    bdraw = ImageDraw.Draw(ball)
+    BALL_RED = (124, 18, 18)
+    bdraw.ellipse([0, 0, bd, bd], fill=BALL_RED + (255,))
+    # glossy highlight, upper-left
+    hl = Image.new("RGBA", (bd, bd), (0, 0, 0, 0))
+    hd = ImageDraw.Draw(hl)
+    hd.ellipse([bd * 0.14, bd * 0.10, bd * 0.62, bd * 0.58],
+               fill=(190, 70, 70, 150))
+    hl = hl.filter(ImageFilter.GaussianBlur(bd * 0.06))
+    ball.alpha_composite(hl)
+    # seam: an arc across the ball plus two rows of stitches
+    cx = cy = bd // 2
+    bdraw.arc([bd * 0.04, bd * 0.04, bd * 0.96, bd * 0.96],
+              start=58, end=122, fill=CREAM + (255,), width=int(7 * S))
+    import math
+    for frac, off in ((0.5, -22 * S), (0.5, 22 * S)):
+        for a in range(60, 121, 6):
+            rad = math.radians(a)
+            r = bd * 0.46
+            x = cx + r * math.cos(rad)
+            y = cy - r * math.sin(rad) + off
+            bdraw.line([x - 9 * S, y, x + 9 * S, y], fill=CREAM + (255,),
+                       width=int(3 * S))
+    ball = ball.resize((360, 360), Image.LANCZOS)
+    # soft drop shadow under the ball
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shadow)
+    sd.ellipse([815, 320, 1165, 560], fill=(0, 0, 0, 110))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(30))
+    img.paste(Image.alpha_composite(
+        img.convert("RGBA"), shadow).convert("RGB"), (0, 0))
+    img.paste(ball, (812, 150), ball)
+    draw = ImageDraw.Draw(img)
+
+    def font(size, bold=True):
+        for p in ("/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+                  if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
+                  "/Library/Fonts/Arial Bold.ttf",
+                  "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+            try:
+                return ImageFont.truetype(p, size)
+            except OSError:
+                continue
+        return ImageFont.load_default()
+
+    # green accent bar above the wordmark
+    draw.rectangle([92, 150, 240, 162], fill=GREEN)
+    # title (two lines) + tagline + domain
+    draw.text((88, 188), "CRICKET", font=font(96), fill=(255, 255, 255))
+    draw.text((88, 288), "STATS HINDI", font=font(96), fill=CREAM)
+    draw.text((92, 415), "Cricket statistics in Hindi", font=font(42, False),
+              fill=(235, 210, 210))
+    draw.text((92, 540), "cricketstatshindi.com", font=font(36), fill=GREEN)
+
+    img.save(OUT / "og-image.png", "PNG")
+
+
 def write_favicons():
     """Rasterize favicon.svg into the full favicon pack + webmanifest.
 
@@ -1442,6 +1546,8 @@ def write_static():
         '<line x1="6" y1="29" x2="35" y2="58" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/></svg>')
     # favicon raster pack (PNG + ICO + webmanifest) rendered from favicon.svg
     write_favicons()
+    # Open Graph share image (1200x630) for social / WhatsApp previews
+    write_og_image()
     # search.js
     (OUT / "search.js").write_text(SEARCH_JS, encoding="utf-8")
     # search index
@@ -1450,6 +1556,8 @@ def write_static():
     # robots
     (OUT / "robots.txt").write_text(
         f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n")
+    # IndexNow ownership key file (content must equal the key)
+    (OUT / f"{INDEXNOW_KEY}.txt").write_text(INDEXNOW_KEY + "\n")
     # CNAME
     (OUT / "CNAME").write_text("cricketstatshindi.com\n")
     # 404
@@ -1844,8 +1952,11 @@ def build_thisday(index, full):
 
 # ===================================================================== MAIN ===
 def main():
+    global _PAGE_PIDS
     print("Loading processed data…")
     index = load("players_index.json")
+    # Players with generated profile pages — gate every player link on this.
+    _PAGE_PIDS = {p["id"] for p in index[:N_PLAYERS]}
     full = load("players_full.json")
     records = load("records.json")
     ipl = load("ipl.json")
