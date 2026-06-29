@@ -5,7 +5,7 @@
 Reads data/processed/*.json (from aggregate.py) and writes HTML to the repo
 root (GitHub Pages serves from there). Run after aggregate.py.
 """
-import json, os, glob, shutil
+import json, os, glob, shutil, subprocess
 from pathlib import Path
 from datetime import date
 import templates as TPL
@@ -769,6 +769,49 @@ def build_scorecard(mid, d):
 
 
 # ============================================================ STATIC ASSETS ==
+def write_favicons():
+    """Rasterize favicon.svg into the full favicon pack + webmanifest.
+
+    Needs `rsvg-convert` (SVG→PNG) and Pillow (multi-size .ico). The .svg must
+    already be written by write_static() before this runs.
+    """
+    from PIL import Image
+    svg = OUT / "favicon.svg"
+    # transparent-corner PNGs straight from the SVG
+    png_sizes = {
+        "favicon-16x16.png": 16,
+        "favicon-32x32.png": 32,
+        "favicon-192x192.png": 192,
+        "favicon-512x512.png": 512,
+        "apple-touch-icon.png": 180,
+    }
+    for name, size in png_sizes.items():
+        subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(size),
+                        str(svg), "-o", str(OUT / name)], check=True)
+    # apple-touch-icon: iOS dislikes transparency — flatten onto white
+    apple = Image.open(OUT / "apple-touch-icon.png").convert("RGBA")
+    bg = Image.new("RGBA", apple.size, (255, 255, 255, 255))
+    bg.alpha_composite(apple)
+    bg.convert("RGB").save(OUT / "apple-touch-icon.png")
+    # multi-resolution favicon.ico (16 + 32)
+    Image.open(OUT / "favicon-32x32.png").convert("RGBA").save(
+        OUT / "favicon.ico", sizes=[(16, 16), (32, 32)])
+    # web app manifest
+    manifest = {
+        "name": "क्रिकेट आँकड़े",
+        "short_name": "क्रिकेट आँकड़े",
+        "icons": [
+            {"src": "/favicon-192x192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/favicon-512x512.png", "sizes": "512x512", "type": "image/png"},
+        ],
+        "theme_color": "#15803d",
+        "background_color": "#ffffff",
+        "display": "standalone",
+    }
+    (OUT / "site.webmanifest").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def write_static():
     # favicon
     (OUT / "favicon.svg").write_text(
@@ -778,10 +821,12 @@ def write_static():
         '<stop offset="100%" stop-color="#4A0E0E" stop-opacity="0.3"/></radialGradient></defs>'
         '<circle cx="32" cy="32" r="28" fill="#8B1A1A"/>'
         '<circle cx="32" cy="32" r="28" fill="url(#s)"/>'
-        '<line x1="9" y1="18" x2="55" y2="18" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/>'
-        '<line x1="6" y1="27" x2="58" y2="27" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/>'
-        '<line x1="6" y1="37" x2="58" y2="37" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/>'
-        '<line x1="9" y1="46" x2="55" y2="46" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/></svg>')
+        '<line x1="29" y1="6" x2="58" y2="35" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/>'
+        '<line x1="18" y1="10" x2="54" y2="46" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/>'
+        '<line x1="10" y1="18" x2="46" y2="54" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/>'
+        '<line x1="6" y1="29" x2="35" y2="58" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/></svg>')
+    # favicon raster pack (PNG + ICO + webmanifest) rendered from favicon.svg
+    write_favicons()
     # search.js
     (OUT / "search.js").write_text(SEARCH_JS, encoding="utf-8")
     # search index

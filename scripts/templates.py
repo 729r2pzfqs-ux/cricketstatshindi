@@ -151,6 +151,11 @@ def head(title, desc, canonical, depth, jsonld=None, og_type="website"):
 <meta name="twitter:image" content="{SITE}/og-image.png">
 <meta name="theme-color" content="#15803d">
 <link rel="icon" href="{up}favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="{up}favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="{up}favicon-16x16.png">
+<link rel="icon" href="{up}favicon.ico" sizes="any">
+<link rel="apple-touch-icon" sizes="180x180" href="{up}apple-touch-icon.png">
+<link rel="manifest" href="{up}site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -211,7 +216,7 @@ def nav(depth, active=""):
 <div class="h-1 pitch-stripe"></div>
 <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
   <a href="{up}" class="flex items-center gap-2 shrink-0">
-    <svg width="36" height="36" viewBox="0 0 64 64" class="shrink-0" aria-hidden="true"><defs><radialGradient id="cshball" cx="40%" cy="35%" r="60%"><stop offset="0%" stop-color="#A52A2A" stop-opacity="0.3"/><stop offset="100%" stop-color="#4A0E0E" stop-opacity="0.3"/></radialGradient></defs><circle cx="32" cy="32" r="28" fill="#8B1A1A"/><circle cx="32" cy="32" r="28" fill="url(#cshball)"/><line x1="9" y1="18" x2="55" y2="18" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="27" x2="58" y2="27" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="37" x2="58" y2="37" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/><line x1="9" y1="46" x2="55" y2="46" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/></svg>
+    <svg width="36" height="36" viewBox="0 0 64 64" class="shrink-0" aria-hidden="true"><defs><radialGradient id="cshball" cx="40%" cy="35%" r="60%"><stop offset="0%" stop-color="#A52A2A" stop-opacity="0.3"/><stop offset="100%" stop-color="#4A0E0E" stop-opacity="0.3"/></radialGradient></defs><circle cx="32" cy="32" r="28" fill="#8B1A1A"/><circle cx="32" cy="32" r="28" fill="url(#cshball)"/><line x1="29" y1="6" x2="58" y2="35" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="10" x2="54" y2="46" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="18" x2="46" y2="54" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="29" x2="35" y2="58" stroke="#F5E6D0" stroke-width="2" stroke-linecap="round"/></svg>
     <span class="font-heading font-extrabold text-lg leading-none hi">
       <span class="text-cr-green">क्रिकेट</span><span class="text-cr-ink"> आँकड़े</span>
     </span>
