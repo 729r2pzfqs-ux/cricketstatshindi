@@ -778,17 +778,17 @@ def write_static():
         '<stop offset="100%" stop-color="#4A0E0E" stop-opacity="0.3"/></radialGradient></defs>'
         '<circle cx="32" cy="32" r="28" fill="#8B1A1A"/>'
         '<circle cx="32" cy="32" r="28" fill="url(#s)"/>'
-        '<path d="M7 31 Q19.5 25 32 31 T57 31" fill="none" stroke="#F5E6D0" stroke-width="1.8" stroke-linecap="round"/>'
-        '<path d="M7 35 Q19.5 29 32 35 T57 35" fill="none" stroke="#F5E6D0" stroke-width="1.8" stroke-linecap="round"/>'
-        '<line x1="11" y1="28" x2="11" y2="36" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="16" y1="27" x2="16" y2="35" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="21" y1="26" x2="21" y2="34" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="26" y1="28" x2="26" y2="36" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="31" y1="29" x2="31" y2="37" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="36" y1="30" x2="36" y2="38" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="41" y1="32" x2="41" y2="40" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="46" y1="32" x2="46" y2="40" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
-        '<line x1="51" y1="31" x2="51" y2="39" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/></svg>')
+        '<path d="M31 7 Q25 19.5 31 32 T31 57" fill="none" stroke="#F5E6D0" stroke-width="1.8" stroke-linecap="round"/>'
+        '<path d="M35 7 Q29 19.5 35 32 T35 57" fill="none" stroke="#F5E6D0" stroke-width="1.8" stroke-linecap="round"/>'
+        '<line x1="28" y1="11" x2="36" y2="11" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
+        '<line x1="27" y1="16" x2="35" y2="16" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
+        '<line x1="26" y1="21" x2="34" y2="21" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
+        '<line x1="28" y1="26" x2="36" y2="26" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
+        '<line x1="29" y1="31" x2="37" y2="31" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
+        '<line x1="30" y1="36" x2="38" y2="36" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
+        '<line x1="32" y1="41" x2="40" y2="41" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
+        '<line x1="32" y1="46" x2="40" y2="46" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/>'
+        '<line x1="31" y1="51" x2="39" y2="51" stroke="#F5E6D0" stroke-width="1.3" stroke-linecap="round"/></svg>')
     # search.js
     (OUT / "search.js").write_text(SEARCH_JS, encoding="utf-8")
     # search index
