@@ -66,7 +66,12 @@ TEAM_HI = {
     "Deccan Chargers": "डेक्कन चार्जर्स", "Pune Warriors": "पुणे वॉरियर्स",
     "Gujarat Lions": "गुजरात लायंस",
     "Rising Pune Supergiant": "राइजिंग पुणे सुपरजायंट",
+    "Rising Pune Supergiants": "राइजिंग पुणे सुपरजायंट्स",
     "Kochi Tuskers Kerala": "कोच्चि टस्कर्स केरल",
+    # former franchise names (renamed/rebranded)
+    "Royal Challengers Bangalore": "रॉयल चैलेंजर्स बैंगलोर",
+    "Kings XI Punjab": "किंग्स इलेवन पंजाब",
+    "Delhi Daredevils": "दिल्ली डेयरडेविल्स",
 }
 
 

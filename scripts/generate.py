@@ -14,6 +14,7 @@ from templates import (T, FMT, FMT_DESC, SITE, BRAND_EN, esc, slug, hindi_name,
 import content as C
 import thisday as TD
 import tournaments as TT
+import scorecards as SC
 
 # merge the extra curated Devanagari player names into the shared dictionary
 TPL.HINDI_NAMES.update(C.PLAYER_HI_EXTRA)
@@ -682,132 +683,327 @@ def build_h2h(pa, pb):
 
 
 # =============================================================== SCORECARDS ===
-def build_matches():
-    """Generate scorecards for IPL finals (one per season)."""
-    depth = 1
-    finals = []
-    for fn in glob.glob(str(RAW / "ipl_json" / "*.json")):
-        try:
-            d = json.load(open(fn))
-        except Exception:
-            continue
-        ev = d["info"].get("event", {})
-        if isinstance(ev, dict) and str(ev.get("stage", "")).lower() == "final":
-            finals.append((fn, d))
-    finals.sort(key=lambda x: x[1]["info"].get("dates", [""])[0])
-    listed = []
-    for fn, d in finals:
-        mid = Path(fn).stem
-        info = d["info"]
-        season = str(info.get("season", "")).split("/")[0]
-        listed.append((mid, season, info))
-        build_scorecard(mid, d)
-    # index
-    rows = []
-    for mid, season, info in reversed(listed):
-        teams = " बनाम ".join(info.get("teams", []))
-        oc = info.get("outcome", {})
-        res = oc.get("winner", "—")
-        rows.append([f'<a href="{mid}/" class="font-bold text-cr-ink hover:text-cr-green tnum">{season}</a>',
-                     f'<span class="hi">{esc(teams)}</span>',
-                     f'<span class="hi text-cr-green font-semibold">{esc(res)}</span>'])
-    body = f"""{section_title('आईपीएल फ़ाइनल — स्कोरकार्ड', 'हर सीज़न के फ़ाइनल मैच का पूरा स्कोरकार्ड')}
-      {table([T['season'], T['team'], 'विजेता'], rows)}"""
-    desc = "आईपीएल फ़ाइनल मैचों के स्कोरकार्ड हिंदी में — हर सीज़न के फ़ाइनल का पूरा बल्लेबाज़ी व गेंदबाज़ी विवरण और परिणाम।"
-    write("matches/index.html", page("मैच स्कोरकार्ड — आईपीएल फ़ाइनल | क्रिकेट आँकड़े",
-                                      desc, "/matches/", depth, body, active="matches",
-                                      trail=[("होम", "../"), (T['matches'], None)]), "0.7")
-    search_rows.append(["मैच स्कोरकार्ड", "/matches/", "पेज", "matches scorecard final ipl"])
+# Hindi ordinals for Test innings ("पहली पारी" etc.)
+_INN_ORD = {1: "पहली", 2: "दूसरी", 3: "तीसरी", 4: "चौथी"}
+# extras abbreviations
+_EXTRA_HI = [("byes", "बा"), ("legbyes", "लेबा"), ("wides", "वा"),
+             ("noballs", "नो"), ("penalty", "पे")]
+# module-level link context populated by build_scorecards()
+_SC_PIDS = set()
+_SC_TEAMSLUGS = set()
 
 
-def build_scorecard(mid, d):
+def _sc_plink(name, registry, depth):
+    """Link a player by name to their profile when one exists, else plain name."""
+    pid = registry.get(name)
+    hn = hindi_name(name)
+    sub = f' <span class="hi text-cr-text text-xs">{hn}</span>' if hn else ""
+    if pid and pid in _SC_PIDS:
+        return (f'<a href="{"../"*depth}players/{pid}/" '
+                f'class="font-medium text-cr-ink hover:text-cr-green">{esc(name)}</a>{sub}')
+    return f'<span class="font-medium text-cr-ink">{esc(name)}</span>{sub}'
+
+
+def _sc_tlink(name, depth):
+    if slug(name) in _SC_TEAMSLUGS:
+        return (f'<a href="{"../"*depth}teams/{slug(name)}/" '
+                f'class="text-cr-ink hover:text-cr-green hi font-medium">{esc(C.team_hi(name))}</a>')
+    return f'<span class="text-cr-ink hi font-medium">{esc(C.team_hi(name))}</span>'
+
+
+def _sc_date_hi(iso):
+    """`5 अप्रैल 2017` from an ISO date string."""
+    try:
+        y, mo, da = (int(x) for x in iso.split("-")[:3])
+        return f"{da} {MONTHS_HI[mo]} {y}"
+    except (ValueError, IndexError):
+        return iso
+
+
+def _sc_innings_block(inn, registry, multi, depth):
+    """Render one innings: header, batting, extras/total, FoW, bowling."""
+    team = inn["team"]
+    label = esc(C.team_hi(team))
+    if inn.get("super_over"):
+        label += ' <span class="text-sm font-normal opacity-90">(सुपर ओवर)</span>'
+    elif multi:
+        label += (f' <span class="text-sm font-normal opacity-90">'
+                  f'({_INN_ORD.get(inn["inn_no"], inn["inn_no"])} पारी)</span>')
+
+    batrows = []
+    for b in inn["batsmen"]:
+        how = ('<span class="text-cr-green">नाबाद</span>' if not b["out"]
+               else esc(b["how"]))
+        name = (_sc_plink(b["name"], registry, depth) +
+                f'<div class="text-xs text-cr-text hi mt-0.5">{how}</div>')
+        batrows.append([name, b["r"], b["b"], b["4s"], b["6s"], f'{b["sr"]:g}'])
+
+    ex = inn["extras"]
+    ex_detail = ", ".join(f"{lab} {ex[k]}" for k, lab in _EXTRA_HI if ex.get(k))
+    ex_line = (f'<div class="flex justify-between px-3 py-2 text-sm border-t border-cr-border">'
+               f'<span class="hi text-cr-text">अतिरिक्त</span>'
+               f'<span class="tnum font-medium">{inn["extras_total"]}'
+               f'{f" <span class=\'text-cr-text text-xs\'>({ex_detail})</span>" if ex_detail else ""}</span></div>')
+    total_line = (f'<div class="flex justify-between px-3 py-2 text-sm border-t border-cr-border bg-cr-bg">'
+                  f'<span class="hi font-bold text-cr-ink">कुल</span>'
+                  f'<span class="tnum font-bold text-cr-ink">{inn["runs"]}/{inn["wkts"]} '
+                  f'<span class="font-normal text-cr-text">({inn["overs"]} ओवर)</span></span></div>')
+
+    dnb = ""
+    if inn["did_not_bat"]:
+        names = ", ".join(_sc_plink(n, registry, depth) for n in inn["did_not_bat"])
+        dnb = (f'<div class="px-3 py-2 text-sm border-t border-cr-border">'
+               f'<span class="hi text-cr-text">बल्लेबाज़ी नहीं की: </span>{names}</div>')
+
+    fow = ""
+    if inn["fow"]:
+        parts = ", ".join(
+            f'<span class="whitespace-nowrap"><b class="tnum">{w["n"]}-{w["score"]}</b> '
+            f'<span class="text-cr-text text-xs">({esc(w["player"])}, {w["over"]})</span></span>'
+            for w in inn["fow"])
+        fow = (f'<div class="px-3 py-2 text-sm border-t border-cr-border">'
+               f'<span class="hi text-cr-text">विकेट पतन: </span>{parts}</div>')
+
+    bowlrows = [[_sc_plink(b["name"], registry, depth), b["overs"], b["m"],
+                 b["r"], b["w"], f'{b["econ"]:g}'] for b in inn["bowlers"]]
+
+    bat_table = table(['बल्लेबाज़', T['runs'], T['balls'], '4s', '6s', 'SR'],
+                      batrows, align_right={1, 2, 3, 4, 5})
+    # splice extras/total/dnb/fow into the batting card (before closing div)
+    bat_table = bat_table.replace("</tbody></table></div>",
+                                  "</tbody></table>" + ex_line + total_line +
+                                  dnb + fow + "</div>")
+    bowl_table = table(['गेंदबाज़', 'ओवर', 'मे.', T['runs'], 'वि.', 'इको'],
+                       bowlrows, align_right={1, 2, 3, 4, 5})
+    return f"""<div class="mb-6">
+      <div class="flex items-center justify-between bg-cr-green text-white rounded-t-xl px-4 py-2.5">
+        <span class="hi font-heading font-bold">{label}</span>
+        <span class="tnum font-bold">{inn["runs"]}/{inn["wkts"]} <span class="text-sm font-normal opacity-90">({inn["overs"]} ओवर)</span></span></div>
+      {bat_table}
+      <div class="mt-2">{bowl_table}</div>
+    </div>"""
+
+
+def _sc_result_line(m):
+    """Hindi one-line result string with the winner in Devanagari."""
+    if m["winner"]:
+        return f'{C.team_hi(m["winner"])} {m["result"]}'
+    return m["result"]
+
+
+def build_scorecard_page(m):
+    """Render a single match scorecard at /matches/<id>/."""
     depth = 2
-    info = d["info"]
-    season = str(info.get("season", "")).split("/")[0]
-    teams = info.get("teams", [])
-    venue = info.get("venue", "")
-    oc = info.get("outcome", {})
-    pom = ", ".join(info.get("player_of_match", []) or [])
-    winner = oc.get("winner", "")
-    by = oc.get("by", {})
-    margin = ""
-    if "runs" in by:
-        margin = f"{by['runs']} रन से"
-    elif "wickets" in by:
-        margin = f"{by['wickets']} विकेट से"
+    fkey = m["fmt"]
+    flabel, fslug = FMT[fkey]
+    registry = m["registry"]
+    teams = m["teams"]
+    title_teams = " बनाम ".join(C.team_hi(t) for t in teams)
 
-    innings_html = ""
-    for inn in d.get("innings", []):
-        team = inn.get("team", "")
-        bat = {}      # batter -> [runs, balls, 4s, 6s, out?]
-        bowl = {}     # bowler -> [balls, runs, wkts]
-        order = []
-        total = 0; wkts = 0; legal = 0
-        for ov in inn.get("overs", []):
-            for de in ov.get("deliveries", []):
-                ex = de.get("extras", {})
-                wide = "wides" in ex; nb = "noballs" in ex
-                bye = ex.get("byes", 0) + ex.get("legbyes", 0)
-                rb = de["runs"]; total += rb.get("total", 0)
-                bt = de.get("batter")
-                if bt not in bat:
-                    bat[bt] = [0, 0, 0, 0, False]; order.append(bt)
-                bat[bt][0] += rb.get("batter", 0)
-                if not wide:
-                    bat[bt][1] += 1
-                if rb.get("batter") == 4: bat[bt][2] += 1
-                elif rb.get("batter") == 6: bat[bt][3] += 1
-                bw = de.get("bowler")
-                bowl.setdefault(bw, [0, 0, 0])
-                if not (wide or nb):
-                    bowl[bw][0] += 1; legal += 1
-                bowl[bw][1] += rb.get("total", 0) - bye - ex.get("penalty", 0)
-                for w in de.get("wickets", []):
-                    wkts += 1
-                    po = w.get("player_out")
-                    if po in bat:
-                        bat[po][4] = True
-                    if w.get("kind") in {"bowled","caught","lbw","stumped","caught and bowled","hit wicket"}:
-                        bowl[bw][2] += 1
-        batrows = []
-        for b in order:
-            r = bat[b]
-            sr = round(r[0] / r[1] * 100, 1) if r[1] else 0
-            status = "नाबाद" if not r[4] else ""
-            batrows.append([f'{esc(b)} <span class="text-cr-text text-xs hi">{status}</span>',
-                            r[0], r[1], r[2], r[3], f'{sr}'])
-        bowlrows = []
-        for b, r in bowl.items():
-            ov_str = f"{r[0]//6}.{r[0]%6}"
-            econ = round(r[1] / (r[0] / 6), 2) if r[0] else 0
-            bowlrows.append([esc(b), ov_str, r[1], r[2], f'{econ}'])
-        ov_total = f"{legal//6}.{legal%6}"
-        innings_html += f"""<div class="mb-6">
-          <div class="flex items-center justify-between bg-cr-green text-white rounded-t-xl px-4 py-2.5">
-            <span class="hi font-heading font-bold">{esc(team)}</span>
-            <span class="tnum font-bold">{total}/{wkts} <span class="text-sm font-normal opacity-90">({ov_total} ओवर)</span></span></div>
-          {table(['बल्लेबाज़', 'रन', 'गेंद', '4s', '6s', 'SR'], batrows, align_right={1,2,3,4,5})}
-          <div class="mt-2">{table(['गेंदबाज़', 'ओवर', 'रन', 'विकेट', 'इको'], bowlrows, align_right={1,2,3,4})}</div>
-        </div>"""
+    # context line under the title (format · event · stage)
+    ctx = [flabel]
+    if m["event"] and m["event"].lower() not in ("",):
+        ctx.append(esc(m["event"]))
+    if m["stage"]:
+        ctx.append(esc(m["stage"]))
+    elif m["match_number"]:
+        ctx.append(f'मैच {m["match_number"]}')
+    ctx_line = " · ".join(ctx)
+
+    result_html = ""
+    if _sc_result_line(m):
+        result_html = (f'<div class="hi text-lg font-bold mt-2 flex items-center gap-2">'
+                       f'{icon("trophy","w-5 h-5")}<span>{esc(_sc_result_line(m))}</span></div>')
+    toss_html = ""
+    if m["toss_winner"]:
+        dec = {"bat": "पहले बल्लेबाज़ी", "field": "पहले गेंदबाज़ी"}.get(
+            m["toss_decision"], m["toss_decision"])
+        toss_html = (f'<div class="hi text-sm mt-1 opacity-90">टॉस: '
+                     f'{esc(C.team_hi(m["toss_winner"]))} — {dec} चुनी</div>')
+    pom_html = ""
+    if m["pom"]:
+        pom_links = ", ".join(_sc_plink(n, registry, depth) for n in m["pom"])
+        pom_html = (f'<div class="hi text-sm mt-2 opacity-90">प्लेयर ऑफ़ द मैच: '
+                    f'<b class="text-white">{pom_links}</b></div>')
+    venue_bits = " · ".join(x for x in (esc(m["venue"]), esc(m["city"])) if x)
+
+    innings_html = "".join(
+        _sc_innings_block(inn, registry, m["multi_innings"], depth)
+        for inn in m["innings"])
 
     body = f"""
     <div class="rounded-2xl pitch-stripe text-white p-6 mb-6">
-      <div class="hi text-sm opacity-90">आईपीएल {season} · फ़ाइनल</div>
-      <h1 class="hi font-heading font-extrabold text-2xl sm:text-3xl">{esc(' बनाम '.join(teams))}</h1>
-      <div class="hi mt-2 opacity-90">{esc(venue)}</div>
-      {f'<div class="hi text-lg font-bold mt-2 flex items-center gap-2">{icon("trophy","w-5 h-5")}<span>{esc(winner)} {margin} विजयी</span></div>' if winner else ''}
-      {f'<div class="hi text-sm mt-1 opacity-90">मैन ऑफ़ द मैच: <b>{esc(pom)}</b></div>' if pom else ''}
+      <div class="hi text-sm opacity-90">{ctx_line}</div>
+      <h1 class="hi font-heading font-extrabold text-2xl sm:text-3xl">{esc(title_teams)}</h1>
+      <div class="hi mt-2 opacity-90">{venue_bits}{f" · {_sc_date_hi(m['date'])}" if venue_bits else _sc_date_hi(m['date'])}</div>
+      {result_html}{toss_html}{pom_html}
     </div>
     {innings_html}
-    <div class="mt-4"><a href="../" class="hi text-cr-green font-semibold hover:underline">← सभी स्कोरकार्ड</a></div>
+    <div class="mt-4 flex flex-wrap gap-4">
+      <a href="../{fslug}/{m['year']}/" class="hi text-cr-green font-semibold hover:underline">← {flabel} {m['year']} मैच</a>
+      <a href="../" class="hi text-cr-green font-semibold hover:underline">सभी स्कोरकार्ड</a>
+    </div>
     """
-    title = f"{' बनाम '.join(teams)} — आईपीएल {season} फ़ाइनल स्कोरकार्ड | क्रिकेट आँकड़े"
-    desc = f"आईपीएल {season} फ़ाइनल स्कोरकार्ड हिंदी में — {' बनाम '.join(teams)}। {winner} {margin} विजयी। पूरा बल्लेबाज़ी व गेंदबाज़ी विवरण।"[:300]
-    write(f"matches/{mid}/index.html",
-          page(title, desc, f"/matches/{mid}/", depth, body, active="matches",
-               trail=[("होम", "../../"), (T['matches'], "../"), (f"{season} फ़ाइनल", None)]), "0.5")
-    search_rows.append([f"आईपीएल {season} फ़ाइनल", f"/matches/{mid}/", "स्कोरकार्ड",
-                        f"ipl {season} final scorecard {' '.join(teams)}".lower()])
+    title = f"{title_teams} स्कोरकार्ड — {flabel} {m['year']} | क्रिकेट आँकड़े"
+    desc = (f"{title_teams} {flabel} स्कोरकार्ड हिंदी में ({_sc_date_hi(m['date'])})। "
+            f"{_sc_result_line(m)}। पूरा बल्लेबाज़ी, गेंदबाज़ी विवरण व विकेट पतन।")[:300]
+    ld = {"@context": "https://schema.org", "@type": "SportsEvent",
+          "name": f"{' v '.join(teams)} — {m['event'] or fkey} {m['year']}",
+          "startDate": m["date"], "sport": "Cricket",
+          "location": {"@type": "Place", "name": m["venue"] or m["city"]},
+          "competitor": [{"@type": "SportsTeam", "name": t} for t in teams]}
+    write(f"matches/{m['id']}/index.html",
+          page(title, desc, f"/matches/{m['id']}/", depth, body, active="matches",
+               trail=[("होम", "../../"), (T['matches'], "../"),
+                      (flabel, f"../{fslug}/"), (f"{m['year']}", f"../{fslug}/{m['year']}/"),
+                      (title_teams, None)],
+               jsonld=ld, og_type="article"), "0.5")
+
+
+def _sc_match_row(m, depth):
+    """One row for a year index: date, teams (linked to scorecard), result."""
+    label = (f'<a href="{"../"*depth}matches/{m["id"]}/" '
+             f'class="hi font-medium text-cr-ink hover:text-cr-green">'
+             f'{esc(" बनाम ".join(C.team_hi(t) for t in m["teams"]))}</a>')
+    stage = ""
+    if m["stage"]:
+        stage = f' <span class="hi text-cr-text text-xs">({esc(m["stage"])})</span>'
+    res = _sc_result_line(m)
+    return [f'<span class="hi text-cr-text text-sm whitespace-nowrap">{_sc_date_hi(m["date"])}</span>',
+            label + stage,
+            f'<span class="hi text-cr-green text-sm">{esc(res)}</span>']
+
+
+def build_scorecards(index, teams_d):
+    """Full per-match scorecards + the /matches/ browse hierarchy.
+
+    Streams every men's match through scorecards.parse_match, writes one page
+    per match and accumulates light metadata for the format/year index pages.
+    """
+    global _SC_PIDS, _SC_TEAMSLUGS
+    _SC_PIDS = {p["id"] for p in index[:N_PLAYERS]}
+    _SC_TEAMSLUGS = {slug(t) for t in teams_d.keys()}
+
+    # fmt -> year -> list of light meta dicts (kept for index pages)
+    buckets = {fk: {} for fk in FMT}
+    counts = {fk: 0 for fk in FMT}
+    n = 0
+    for m in SC.iter_matches():
+        build_scorecard_page(m)
+        n += 1
+        counts[m["fmt"]] += 1
+        light = {k: m[k] for k in ("id", "fmt", "date", "year", "teams",
+                                   "event", "stage", "winner", "result")}
+        buckets[m["fmt"]].setdefault(m["year"], []).append(light)
+        if n % 1500 == 0:
+            print(f"  … {n} scorecards rendered")
+    print(f"  rendered {n} match scorecards")
+
+    # ---- per-year index pages ----
+    for fkey in FMT:
+        flabel, fslug = FMT[fkey]
+        for year, ms in buckets[fkey].items():
+            _build_scorecard_year(fkey, flabel, fslug, year, ms)
+        _build_scorecard_format(fkey, flabel, fslug, buckets[fkey], counts[fkey])
+
+    # ---- hub /matches/ ----
+    _build_scorecard_hub(counts, buckets)
+
+
+def _build_scorecard_year(fkey, flabel, fslug, year, ms):
+    depth = 3
+    ms = sorted(ms, key=lambda x: x["date"])
+    # group by event/series, keeping first-appearance order
+    groups = {}
+    for m in ms:
+        key = m["event"] or "द्विपक्षीय शृंखला"
+        groups.setdefault(key, []).append(m)
+    body = f"""
+    <div class="rounded-2xl pitch-stripe text-white p-6 sm:p-7 mb-6">
+      <div class="flex items-center gap-3 mb-1">{fmt_badge(fkey)}
+        <span class="hi text-sm opacity-90 tnum">{len(ms)} मैच</span></div>
+      <h1 class="hi font-heading font-extrabold text-2xl sm:text-3xl">{flabel} {year} — स्कोरकार्ड</h1>
+      <p class="hi mt-2 opacity-90">{year} में खेले गए {flabel} मैचों के पूरे स्कोरकार्ड — बल्लेबाज़ी, गेंदबाज़ी व विकेट पतन।</p>
+    </div>
+    """
+    for gname, gms in groups.items():
+        rows = [_sc_match_row(m, depth) for m in gms]
+        body += section_title(esc(gname), f"{len(gms)} मैच")
+        body += table(['तिथि', 'मैच', 'परिणाम'], rows)
+        body += '<div class="mb-6"></div>'
+    body += (f'<div class="mt-2"><a href="../" class="hi text-cr-green font-semibold '
+             f'hover:underline">← सभी {flabel} सीज़न</a></div>')
+    title = f"{flabel} {year} स्कोरकार्ड — सभी मैच | क्रिकेट आँकड़े"
+    desc = (f"{flabel} {year} के सभी {len(ms)} मैचों के स्कोरकार्ड हिंदी में — "
+            f"पूरा बल्लेबाज़ी व गेंदबाज़ी विवरण, विकेट पतन और परिणाम।")
+    write(f"matches/{fslug}/{year}/index.html",
+          page(title, desc, f"/matches/{fslug}/{year}/", depth, body, active="matches",
+               trail=[("होम", "../../../"), (T['matches'], "../../"),
+                      (flabel, "../"), (f"{year}", None)]), "0.5")
+    search_rows.append([f"{flabel} {year} स्कोरकार्ड", f"/matches/{fslug}/{year}/",
+                        "स्कोरकार्ड", f"{fkey} {year} matches scorecard".lower()])
+
+
+def _build_scorecard_format(fkey, flabel, fslug, year_map, total):
+    depth = 2
+    years = sorted(year_map.keys(), reverse=True)
+    cards = ""
+    for y in years:
+        cards += (f'<a href="{y}/" class="bg-cr-card border border-cr-border rounded-xl '
+                  f'px-4 py-3 text-center hover:border-cr-green hover:shadow-md transition">'
+                  f'<div class="font-heading font-extrabold text-lg text-cr-ink tnum">{y}</div>'
+                  f'<div class="hi text-xs text-cr-text tnum">{len(year_map[y])} मैच</div></a>')
+    span = f"{years[-1]}–{years[0]}" if len(years) > 1 else (years[0] if years else "")
+    body = f"""
+    <div class="rounded-2xl pitch-stripe text-white p-6 sm:p-8 mb-6">
+      <div class="flex items-center gap-3 mb-1">{fmt_badge(fkey)}
+        <span class="hi text-sm opacity-90 tnum">{total} मैच · {span}</span></div>
+      <h1 class="hi font-heading font-extrabold text-2xl sm:text-3xl">{flabel} स्कोरकार्ड</h1>
+      <p class="hi mt-2 opacity-90">{FMT_DESC[fkey]} नीचे सीज़न चुनें और हर मैच का पूरा स्कोरकार्ड देखें।</p>
+    </div>
+    {section_title('सीज़न के अनुसार', 'किसी भी वर्ष के सभी मैच देखें')}
+    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">{cards}</div>
+    <div class="mt-6"><a href="../" class="hi text-cr-green font-semibold hover:underline">← सभी प्रारूप</a></div>
+    """
+    title = f"{flabel} स्कोरकार्ड — सभी सीज़न व मैच | क्रिकेट आँकड़े"
+    desc = (f"{flabel} के {total} मैचों के स्कोरकार्ड हिंदी में — सीज़न के अनुसार ब्राउज़ करें, "
+            f"हर मैच का पूरा बल्लेबाज़ी व गेंदबाज़ी विवरण।")
+    write(f"matches/{fslug}/index.html",
+          page(title, desc, f"/matches/{fslug}/", depth, body, active="matches",
+               trail=[("होम", "../../"), (T['matches'], "../"), (flabel, None)]), "0.6")
+    search_rows.append([f"{flabel} स्कोरकार्ड", f"/matches/{fslug}/", "स्कोरकार्ड",
+                        f"{fkey} matches scorecard season".lower()])
+
+
+def _build_scorecard_hub(counts, buckets):
+    depth = 1
+    total = sum(counts.values())
+    cards = ""
+    for fkey in FMT:
+        flabel, fslug = FMT[fkey]
+        years = sorted(buckets[fkey].keys())
+        span = f"{years[0]}–{years[-1]}" if len(years) > 1 else (years[0] if years else "")
+        cards += f"""<a href="{fslug}/" class="group bg-cr-card border border-cr-border rounded-2xl p-6 hover:border-cr-green hover:shadow-md transition">
+          <div class="flex items-center justify-between mb-2">{fmt_badge(fkey)}
+            <span class="hi text-xs text-cr-text tnum">{span}</span></div>
+          <h2 class="hi font-heading font-extrabold text-xl text-cr-ink group-hover:text-cr-green">{flabel}</h2>
+          <div class="hi text-sm text-cr-text mt-1 tnum">{counts[fkey]:,} मैच स्कोरकार्ड</div></a>"""
+    body = f"""
+    <div class="rounded-2xl pitch-stripe text-white p-6 sm:p-8 mb-6">
+      <h1 class="hi font-heading font-extrabold text-2xl sm:text-3xl">मैच स्कोरकार्ड</h1>
+      <p class="hi opacity-90 max-w-2xl mt-2">टेस्ट, वनडे, टी20आई और आईपीएल के <b class="tnum">{total:,}</b> मैचों के पूरे स्कोरकार्ड हिंदी में — हर पारी की बल्लेबाज़ी (रन, गेंद, चौके-छक्के, स्ट्राइक रेट), गेंदबाज़ी (ओवर, मेडन, रन, विकेट, इकॉनमी), विकेट पतन, टॉस और परिणाम।</p>
+    </div>
+    {section_title('प्रारूप चुनें', 'प्रारूप → सीज़न → मैच')}
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">{cards}</div>
+    """
+    desc = (f"मैच स्कोरकार्ड हिंदी में — टेस्ट, वनडे, टी20आई व आईपीएल के {total:,} मैचों का पूरा "
+            f"बल्लेबाज़ी, गेंदबाज़ी विवरण, विकेट पतन, टॉस व परिणाम।")
+    write("matches/index.html",
+          page("मैच स्कोरकार्ड — टेस्ट, वनडे, टी20आई, आईपीएल | क्रिकेट आँकड़े",
+               desc, "/matches/", depth, body, active="matches",
+               trail=[("होम", "../"), (T['matches'], None)]), "0.8")
+    search_rows.append(["मैच स्कोरकार्ड", "/matches/", "पेज",
+                        "matches scorecard batting bowling fall of wickets test odi t20i ipl"])
 
 
 # ====================================================== ICC TOURNAMENTS ======
@@ -1763,8 +1959,8 @@ def main():
     build_ipl(ipl, records, teams_d)
     print("Building compare/H2H…")
     build_compare(full, index, grouped)
-    print("Building scorecards…")
-    build_matches()
+    print("Building match scorecards…")
+    build_scorecards(index, teams_d)
     print("Building ICC tournaments (World Cup / T20 WC / Champions Trophy)…")
     tour_data = TT.collect(RAW)
     valid_ids = {p["id"] for p in index[:N_PLAYERS]}
