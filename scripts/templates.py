@@ -272,7 +272,7 @@ def footer(depth):
     </div>
     {col("प्रारूप", [("आईपीएल", up+"ipl/"), ("टेस्ट", up+"test/"), ("वनडे", up+"odi/"), ("टी20आई", up+"t20i/")])}
     {col("खोजें", [("खिलाड़ी", up+"players/"), ("टीमें", up+"teams/"), ("रिकॉर्ड", up+"records/"), ("तुलना", up+"compare/")])}
-    {col("अधिक", [("मैच", up+"matches/"), ("होम", up)])}
+    {col("अधिक", [("मैच", up+"matches/"), ("हमारे बारे में", up+"about/"), ("गोपनीयता नीति", up+"privacy/"), ("होम", up)])}
   </div>
   <div class="border-t border-cr-border pt-6 text-center text-sm text-cr-text">
     <p class="hi mb-1">डेटा स्रोत: <a href="https://cricsheet.org" class="text-cr-green hover:underline" rel="noopener">Cricsheet.org</a> — ओपन-सोर्स बॉल-बाय-बॉल क्रिकेट डेटा।</p>

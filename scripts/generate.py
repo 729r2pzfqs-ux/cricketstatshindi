@@ -11,6 +11,10 @@ from datetime import date
 import templates as TPL
 from templates import (T, FMT, FMT_DESC, SITE, BRAND_EN, esc, slug, hindi_name,
                        fmt_badge, page, icon)
+import content as C
+
+# merge the extra curated Devanagari player names into the shared dictionary
+TPL.HINDI_NAMES.update(C.PLAYER_HI_EXTRA)
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data" / "processed"
@@ -159,6 +163,18 @@ def build_home(index, records, ipl, teams_d):
       {mini('सर्वाधिक रन (टी20आई)', records['T20I']['most_runs'], 'T20I')}
     </section>
     <div class="text-center"><a href="records/" class="hi text-cr-green font-semibold hover:underline">सभी रिकॉर्ड देखें →</a></div>
+    <div class="mt-12">{C.prose([
+      "<b>क्रिकेट आँकड़े</b> (CricketStatsHindi.com) हिंदी भाषी क्रिकेट प्रेमियों के लिए "
+      "एक संपूर्ण आँकड़ा मंच है, जहाँ टेस्ट, वनडे, टी20आई और आईपीएल — चारों प्रमुख "
+      "प्रारूपों के विस्तृत रिकॉर्ड एक ही जगह उपलब्ध हैं। यहाँ हज़ारों खिलाड़ियों की "
+      "करियर प्रोफ़ाइल, बल्लेबाज़ी और गेंदबाज़ी के आँकड़े, औसत, स्ट्राइक रेट, शतक और "
+      "विकेट जैसी हर जानकारी सरल हिंदी में मौजूद है।",
+      "विराट कोहली, सचिन तेंदुलकर, रोहित शर्मा, एमएस धोनी और जसप्रीत बुमराह जैसे "
+      "दिग्गजों से लेकर उभरते सितारों तक — हर खिलाड़ी के प्रारूप-वार आँकड़े देखें। "
+      "इसके अलावा सर्वकालिक रिकॉर्ड, टीम रिकॉर्ड, दो खिलाड़ियों की हेड-टू-हेड तुलना, "
+      "आईपीएल के हर सीज़न का ब्योरा और फ़ाइनल मुक़ाबलों के पूरे स्कोरकार्ड भी यहाँ "
+      "उपलब्ध हैं। हमारा लक्ष्य है क्रिकेट के समृद्ध आँकड़ों को हिंदी में हर प्रशंसक तक पहुँचाना।",
+    ], heading='हिंदी में क्रिकेट सांख्यिकी')}</div>
     """
     jsonld = {"@context": "https://schema.org", "@type": "WebSite", "name": BRAND_EN,
               "alternateName": "क्रिकेट आँकड़े", "url": SITE, "inLanguage": "hi",
@@ -248,6 +264,7 @@ def build_player(p, depth=2):
       </div>
     </div>
     {tiles}
+    {C.player_intro_html(p, hn)}
     {section_title('प्रारूप अनुसार करियर आँकड़े')}
     {blocks}
     <div class="mt-6 flex flex-wrap gap-3">
@@ -394,6 +411,7 @@ def build_format_section(fkey, records, teams_d, index):
       <p class="hi opacity-90 max-w-2xl">{FMT_DESC[fkey]}</p>
       <a href="{'../records/'+fslug+'/'}" class="hi inline-block mt-4 bg-white text-cr-green font-semibold text-sm px-4 py-2 rounded-lg hover:bg-cr-bg">सभी {label} रिकॉर्ड →</a>
     </div>
+    {C.format_intro_html(fkey)}
     {section_title('शीर्ष प्रदर्शनकर्ता')}
     <div class="grid lg:grid-cols-2 gap-6 mb-8">
       {lead('सर्वाधिक रन', rec['most_runs'])}
@@ -459,6 +477,7 @@ def build_team(t, players_list):
       <div><h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-cr-ink hi">{esc(name)}</h1>
       <div class="hi text-sm text-cr-text mt-1">{t['total_played']} मैच · {t['total_won']} जीत · {t['win_pct']}% जीत दर</div></div>
     </div>
+    {C.team_intro_html(t)}
     {section_title('प्रारूप अनुसार रिकॉर्ड')}
     {table([T['format'], T['played'], T['won'], T['lost'], T['tied'], T['winpct']], frows, align_right={1,2,3,4,5})}
     <div class="mt-8">{pblock}</div>
@@ -519,6 +538,7 @@ def build_ipl_season(s):
       <h1 class="hi font-heading font-extrabold text-3xl sm:text-4xl">सीज़न {season}</h1>
       {f'<div class="hi text-xl mt-2 flex items-center gap-2">{icon("trophy","w-6 h-6")}<span>चैंपियन: <b>{esc(s["champion"])}</b></span></div>' if s.get("champion") else ''}
     </div>
+    {C.ipl_season_intro_html(s)}
     <div class="grid sm:grid-cols-2 gap-3 mb-6">
       <div class="bg-cr-card border border-cr-border rounded-xl p-5">
         <div class="hi text-sm font-semibold text-cr-green mb-1 flex items-center gap-1.5">{icon('cap','w-4 h-4','#f97316')}ऑरेंज कैप — सर्वाधिक रन</div>
@@ -628,6 +648,7 @@ def build_h2h(pa, pb):
         <div class="font-heading font-bold text-cr-ink">{esc(pb['name'])}</div>
         {f'<div class="hi text-sm text-cr-text">{hindi_name(pb["name"])}</div>' if hindi_name(pb['name']) else ''}</a>
     </div>
+    {C.h2h_intro_html(pa, pb)}
     {section_title('प्रारूप अनुसार तुलना', 'हरे रंग में बेहतर आँकड़ा')}
     {blocks}"""
     title = f"{pa['name']} बनाम {pb['name']} — तुलना | क्रिकेट आँकड़े"
@@ -766,6 +787,31 @@ def build_scorecard(mid, d):
                trail=[("होम", "../../"), (T['matches'], "../"), (f"{season} फ़ाइनल", None)]), "0.5")
     search_rows.append([f"आईपीएल {season} फ़ाइनल", f"/matches/{mid}/", "स्कोरकार्ड",
                         f"ipl {season} final scorecard {' '.join(teams)}".lower()])
+
+
+# ========================================================== STATIC CONTENT ===
+def build_about():
+    depth = 1
+    body = C.about_body(section_title)
+    desc = ("क्रिकेट आँकड़े (CricketStatsHindi.com) के बारे में जानें — हिंदी भाषी क्रिकेट "
+            "प्रेमियों के लिए टेस्ट, वनडे, टी20आई और आईपीएल के विस्तृत आँकड़ों का मुफ़्त मंच।")
+    write("about/index.html",
+          page("हमारे बारे में — क्रिकेट आँकड़े | CricketStatsHindi",
+               desc, "/about/", depth, body, active="",
+               trail=[("होम", "../"), ("हमारे बारे में", None)]), "0.5")
+    search_rows.append(["हमारे बारे में", "/about/", "पेज", "about hamare bare mein"])
+
+
+def build_privacy():
+    depth = 1
+    body = C.privacy_body(section_title)
+    desc = ("क्रिकेट आँकड़े (CricketStatsHindi.com) की गोपनीयता नीति — हम आपकी जानकारी "
+            "को कैसे एकत्र, उपयोग और सुरक्षित करते हैं, इसकी पूरी जानकारी हिंदी में।")
+    write("privacy/index.html",
+          page("गोपनीयता नीति — क्रिकेट आँकड़े | CricketStatsHindi",
+               desc, "/privacy/", depth, body, active="",
+               trail=[("होम", "../"), ("गोपनीयता नीति", None)]), "0.4")
+    search_rows.append(["गोपनीयता नीति", "/privacy/", "पेज", "privacy gopniyata niti policy"])
 
 
 # ============================================================ STATIC ASSETS ==
@@ -940,6 +986,9 @@ def main():
     build_compare(full, index, pairs)
     print("Building scorecards…")
     build_matches()
+    print("Building about + privacy…")
+    build_about()
+    build_privacy()
     print("Writing static assets + sitemap…")
     write_static()
     n = write_sitemap()
