@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Shared chrome (head, nav, footer), Hindi strings, theme + helpers."""
+import re, html, json
+
+SITE = "https://cricketstatshindi.com"
+BRAND = "क्रिकेट आँकड़े"
+BRAND_EN = "CricketStatsHindi"
+
+# ---- Hindi label dictionary -------------------------------------------------
+T = {
+    "home": "होम", "players": "खिलाड़ी", "teams": "टीमें", "records": "रिकॉर्ड",
+    "compare": "तुलना", "search": "खोजें", "matches": "मैच",
+    "batting": "बल्लेबाज़ी", "bowling": "गेंदबाज़ी", "career": "करियर",
+    "format": "प्रारूप", "season": "सीज़न", "champion": "चैंपियन",
+    # stat columns
+    "m": "मैच", "inn": "पारी", "runs": "रन", "balls": "गेंदें", "avg": "औसत",
+    "sr": "स्ट्राइक रेट", "hs": "सर्वोच्च", "no": "नाबाद", "100s": "शतक",
+    "50s": "अर्धशतक", "4s": "चौके", "6s": "छक्के", "wkts": "विकेट",
+    "econ": "इकॉनमी", "bbi": "श्रेष्ठ गेंदबाज़ी", "5w": "5 विकेट",
+    "played": "खेले", "won": "जीते", "lost": "हारे", "tied": "टाई",
+    "winpct": "जीत %", "pom": "मैन ऑफ़ द मैच", "rank": "#",
+    "player": "खिलाड़ी", "team": "टीम",
+    # record list titles
+    "most_runs": "सर्वाधिक रन", "most_wkts": "सर्वाधिक विकेट",
+    "highest_score": "सर्वोच्च व्यक्तिगत स्कोर", "best_avg": "श्रेष्ठ बल्लेबाज़ी औसत",
+    "best_sr": "श्रेष्ठ स्ट्राइक रेट", "most_sixes": "सर्वाधिक छक्के",
+    "most_hundreds": "सर्वाधिक शतक", "best_econ": "श्रेष्ठ इकॉनमी",
+    "best_bowling_avg": "श्रेष्ठ गेंदबाज़ी औसत",
+}
+
+# format key -> Hindi label + slug
+FMT = {
+    "Test": ("टेस्ट", "test"),
+    "ODI":  ("वनडे", "odi"),
+    "T20I": ("टी20आई", "t20i"),
+    "IPL":  ("आईपीएल", "ipl"),
+}
+FMT_DESC = {
+    "Test": "क्रिकेट का सबसे लंबा और पारंपरिक प्रारूप — पाँच दिनों तक चलने वाले मुक़ाबले।",
+    "ODI":  "50 ओवर का एकदिवसीय अंतरराष्ट्रीय प्रारूप — विश्व कप का घर।",
+    "T20I": "20 ओवर का तेज़-तर्रार अंतरराष्ट्रीय प्रारूप।",
+    "IPL":  "इंडियन प्रीमियर लीग — दुनिया की सबसे बड़ी टी20 फ़्रेंचाइज़ी लीग।",
+}
+
+# curated Devanagari names for marquee players (shown alongside Latin name)
+HINDI_NAMES = {
+    "V Kohli": "विराट कोहली", "RG Sharma": "रोहित शर्मा", "MS Dhoni": "एमएस धोनी",
+    "R Ashwin": "रविचंद्रन अश्विन", "JJ Bumrah": "जसप्रीत बुमराह",
+    "RA Jadeja": "रवींद्र जडेजा", "KL Rahul": "केएल राहुल", "Shubman Gill": "शुभमन गिल",
+    "HH Pandya": "हार्दिक पांड्या", "B Kumar": "भुवनेश्वर कुमार",
+    "Yuvraj Singh": "युवराज सिंह", "G Gambhir": "गौतम गंभीर", "V Sehwag": "वीरेंद्र सहवाग",
+    "Z Khan": "ज़हीर ख़ान", "SK Raina": "सुरेश रैना", "AB de Villiers": "एबी डिविलियर्स",
+    "CH Gayle": "क्रिस गेल", "DA Warner": "डेविड वॉर्नर", "SPD Smith": "स्टीव स्मिथ",
+    "KS Williamson": "केन विलियमसन", "Babar Azam": "बाबर आज़म",
+    "Shakib Al Hasan": "शाकिब अल हसन", "JM Anderson": "जेम्स एंडरसन",
+    "SCJ Broad": "स्टुअर्ट ब्रॉड", "JC Buttler": "जोस बटलर",
+    "BB McCullum": "ब्रेंडन मैकलम", "Rashid Khan": "राशिद ख़ान",
+    "MA Starc": "मिचेल स्टार्क", "PJ Cummins": "पैट कमिंस", "NM Lyon": "नाथन लायन",
+    "KA Pollard": "कीरॉन पोलार्ड", "AD Russell": "आंद्रे रसेल", "SP Narine": "सुनील नरेन",
+    "Q de Kock": "क्विंटन डिकॉक", "RR Pant": "ऋषभ पंत", "Mohammed Shami": "मोहम्मद शमी",
+    "JO Holder": "जेसन होल्डर", "TM Head": "ट्रैविस हेड", "H Klaasen": "हेनरिक क्लासन",
+}
+
+
+def esc(s):
+    return html.escape(str(s), quote=True)
+
+
+def slug(s):
+    s = re.sub(r"[^a-zA-Z0-9]+", "-", str(s).lower()).strip("-")
+    return s or "x"
+
+
+def hindi_name(name):
+    return HINDI_NAMES.get(name)
+
+
+def fmt_badge(fkey):
+    label, fslug = FMT[fkey]
+    cls = {
+        "Test": "bg-rose-50 text-rose-700 border-rose-200",
+        "ODI": "bg-sky-50 text-sky-700 border-sky-200",
+        "T20I": "bg-amber-50 text-amber-700 border-amber-200",
+        "IPL": "bg-emerald-50 text-emerald-700 border-emerald-200",
+    }[fkey]
+    return (f'<span class="inline-block text-xs font-semibold px-2 py-0.5 '
+            f'rounded border {cls}">{label}</span>')
+
+
+# ---- <head> -----------------------------------------------------------------
+def head(title, desc, canonical, depth, jsonld=None, og_type="website"):
+    """depth = number of '../' to reach site root from this page."""
+    up = "../" * depth
+    canon = SITE + canonical
+    ld = ""
+    if jsonld:
+        ld = '<script type="application/ld+json">' + \
+             json.dumps(jsonld, ensure_ascii=False) + "</script>"
+    return f"""<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{esc(title)}</title>
+<meta name="description" content="{esc(desc)}">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="{esc(canon)}">
+<meta property="og:title" content="{esc(title)}">
+<meta property="og:description" content="{esc(desc)}">
+<meta property="og:url" content="{esc(canon)}">
+<meta property="og:type" content="{og_type}">
+<meta property="og:site_name" content="{BRAND_EN}">
+<meta property="og:locale" content="hi_IN">
+<meta property="og:image" content="{SITE}/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{esc(title)}">
+<meta name="twitter:description" content="{esc(desc)}">
+<meta name="twitter:image" content="{SITE}/og-image.png">
+<meta name="theme-color" content="#15803d">
+<link rel="icon" href="{up}favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {{ theme: {{ extend: {{
+  colors: {{
+    'cr-green':'#15803d','cr-dark':'#14532d','cr-accent':'#22c55e',
+    'cr-bg':'#f5f8f4','cr-card':'#ffffff','cr-border':'#e2e8e0',
+    'cr-text':'#52635a','cr-ink':'#16241b','cr-pitch':'#c9b079','cr-ball':'#a4161a'
+  }},
+  fontFamily: {{
+    heading:['"Baloo 2"','"Noto Sans Devanagari"','sans-serif'],
+    body:['Inter','"Noto Sans Devanagari"','sans-serif']
+  }}
+}} }} }}
+</script>
+<style>
+  body{{font-family:Inter,'Noto Sans Devanagari',sans-serif;background:#f5f8f4;color:#16241b}}
+  h1,h2,h3,h4,h5{{font-family:'Baloo 2','Noto Sans Devanagari',sans-serif}}
+  .hi{{font-family:'Noto Sans Devanagari','Baloo 2',sans-serif}}
+  .pitch-stripe{{background:linear-gradient(90deg,#15803d,#22c55e)}}
+  tbody tr:hover td{{background:#f0f7f0}}
+  .tnum{{font-variant-numeric:tabular-nums}}
+  ::selection{{background:#bbf7d0}}
+</style>
+{ld}
+</head>
+<body class="min-h-screen flex flex-col">
+"""
+
+
+# ---- nav --------------------------------------------------------------------
+def nav(depth, active=""):
+    up = "../" * depth
+    items = [
+        ("home", up, "home"),
+        ("players", up + "players/", "players"),
+        ("teams", up + "teams/", "teams"),
+        ("IPL", up + "ipl/", "ipl"),
+        ("Test", up + "test/", "test"),
+        ("ODI", up + "odi/", "odi"),
+        ("T20I", up + "t20i/", "t20i"),
+        ("records", up + "records/", "records"),
+        ("compare", up + "compare/", "compare"),
+        ("matches", up + "matches/", "matches"),
+    ]
+    def label(key):
+        return {"IPL": "आईपीएल", "Test": "टेस्ट", "ODI": "वनडे",
+                "T20I": "टी20आई"}.get(key, T.get(key, key))
+    links = ""
+    mlinks = ""
+    for key, href, act in items:
+        on = "text-cr-green font-semibold" if act == active else "text-cr-text hover:text-cr-green"
+        links += f'<a href="{href}" class="hi px-2.5 py-1.5 rounded-md transition {on}">{label(key)}</a>'
+        mlinks += f'<a href="{href}" class="hi block px-3 py-2 rounded-md {on}">{label(key)}</a>'
+    return f"""<header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-cr-border">
+<div class="h-1 pitch-stripe"></div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+  <a href="{up}" class="flex items-center gap-2 shrink-0">
+    <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg pitch-stripe text-white">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 19L19 5"/><circle cx="7" cy="17" r="2.4" fill="currentColor" stroke="none"/><path d="M14 4l6 6"/></svg>
+    </span>
+    <span class="font-heading font-extrabold text-lg leading-none hi">
+      <span class="text-cr-green">क्रिकेट</span><span class="text-cr-ink"> आँकड़े</span>
+    </span>
+  </a>
+  <nav class="hidden lg:flex items-center gap-0.5 text-sm">{links}
+    <button onclick="CSH_search()" class="hi ml-1 px-3 py-1.5 rounded-md bg-cr-green text-white font-semibold hover:bg-cr-dark transition">{T['search']}</button>
+  </nav>
+  <div class="flex lg:hidden items-center gap-2">
+    <button onclick="CSH_search()" class="hi px-3 py-1.5 rounded-md bg-cr-green text-white text-sm font-semibold">{T['search']}</button>
+    <button onclick="document.getElementById('mnav').classList.toggle('hidden')" class="p-2 rounded-md border border-cr-border" aria-label="मेन्यू">
+      <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+  </div>
+</div>
+<div id="mnav" class="hidden lg:hidden border-t border-cr-border px-4 py-2 space-y-0.5 bg-white">{mlinks}</div>
+</header>
+<script src="{up}search.js" defer></script>
+"""
+
+
+def breadcrumb(depth, trail):
+    """trail = list of (label, href_or_None). Last item is current page."""
+    up = "../" * depth
+    parts, items = [], []
+    for i, (lbl, href) in enumerate(trail):
+        if href:
+            parts.append(f'<a href="{href}" class="hover:text-cr-green">{lbl}</a>')
+        else:
+            parts.append(f'<span class="text-cr-ink font-medium">{lbl}</span>')
+        items.append({"@type": "ListItem", "position": i + 1, "name": str(lbl),
+                      **({"item": SITE + "/" + href.replace(up, "")} if href else {})})
+    sep = '<span class="mx-2 text-cr-border">/</span>'
+    ld = json.dumps({"@context": "https://schema.org", "@type": "BreadcrumbList",
+                     "itemListElement": items}, ensure_ascii=False)
+    return (f'<nav aria-label="breadcrumb" class="hi max-w-7xl mx-auto px-4 sm:px-6 '
+            f'pt-4 text-sm text-cr-text">{sep.join(parts)}</nav>'
+            f'<script type="application/ld+json">{ld}</script>')
+
+
+def footer(depth):
+    up = "../" * depth
+    col = lambda title, links: (
+        f'<div><h4 class="hi font-heading font-bold text-cr-ink mb-3">{title}</h4>'
+        f'<div class="space-y-1.5 text-sm">' +
+        "".join(f'<a href="{h}" class="hi block text-cr-text hover:text-cr-green">{l}</a>'
+                for l, h in links) + "</div></div>")
+    return f"""<footer class="mt-auto border-t border-cr-border bg-white">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+    <div class="col-span-2 md:col-span-1">
+      <div class="font-heading font-extrabold text-lg hi mb-2"><span class="text-cr-green">क्रिकेट</span><span class="text-cr-ink"> आँकड़े</span></div>
+      <p class="hi text-sm text-cr-text leading-relaxed">हिंदी में क्रिकेट सांख्यिकी — टेस्ट, वनडे, टी20आई और आईपीएल के विस्तृत आँकड़े, रिकॉर्ड और खिलाड़ी प्रोफ़ाइल।</p>
+    </div>
+    {col("प्रारूप", [("आईपीएल", up+"ipl/"), ("टेस्ट", up+"test/"), ("वनडे", up+"odi/"), ("टी20आई", up+"t20i/")])}
+    {col("खोजें", [("खिलाड़ी", up+"players/"), ("टीमें", up+"teams/"), ("रिकॉर्ड", up+"records/"), ("तुलना", up+"compare/")])}
+    {col("अधिक", [("मैच", up+"matches/"), ("होम", up)])}
+  </div>
+  <div class="border-t border-cr-border pt-6 text-center text-sm text-cr-text">
+    <p class="hi mb-1">डेटा स्रोत: <a href="https://cricsheet.org" class="text-cr-green hover:underline" rel="noopener">Cricsheet.org</a> — ओपन-सोर्स बॉल-बाय-बॉल क्रिकेट डेटा।</p>
+    <p class="hi">© 2026 क्रिकेट आँकड़े · CricketStatsHindi.com — किसी भी क्रिकेट बोर्ड या लीग से संबद्ध नहीं।</p>
+  </div>
+</div>
+</footer>
+</body></html>"""
+
+
+def page(title, desc, canonical, depth, body, active="", trail=None, jsonld=None, og_type="website"):
+    out = head(title, desc, canonical, depth, jsonld, og_type)
+    out += nav(depth, active)
+    if trail:
+        out += breadcrumb(depth, trail)
+    out += f'<main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6">{body}</main>'
+    out += footer(depth)
+    return out

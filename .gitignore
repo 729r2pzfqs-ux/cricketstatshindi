@@ -1,0 +1,12 @@
+# Raw Cricsheet data (1.7GB — re-download via scripts, see README)
+data/raw/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# Local preview config
+.claude/launch.json
