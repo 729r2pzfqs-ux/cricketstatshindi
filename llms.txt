@@ -1,0 +1,52 @@
+# CricketStatsHindi
+
+> हिंदी में क्रिकेट के विस्तृत आँकड़े — The most comprehensive Hindi-language cricket statistics database on the web.
+
+CricketStatsHindi (क्रिकेट आँकड़े) covers international cricket — Test, ODI (वनडे) and T20I (टी20आई) — plus the IPL (आईपीएल), with player career stats, head-to-head comparisons, team records, all-time leaderboards, ICC tournament history, day-by-day cricket history, and full ball-by-ball match scorecards. Every page is written in Hindi (Devanagari, `lang="hi"`).
+
+## Key Facts
+
+- ~500 player profiles with career statistics across all formats, merged by Cricsheet people-registry id
+- ~125 international team pages with records and win percentages
+- 142 head-to-head player comparison pages
+- 8,064 full match scorecards (Test, ODI, T20I, IPL)
+- 366 "This Day in Cricket" (आज के दिन) pages — one for every calendar date
+- ICC tournament pages: World Cup, T20 World Cup, and Champions Trophy (every edition)
+- 19 IPL season summaries
+- All-time records leaderboards for Test, ODI, T20I and IPL
+- Data sourced from Cricsheet.org open ball-by-ball data (~10,720 matches processed)
+- Language: Hindi (हिंदी / Devanagari)
+
+## Sections
+
+- [Home](https://cricketstatshindi.com/index.html): Site overview, search, and entry points to all formats and records
+- [Players](https://cricketstatshindi.com/players/index.html): Career profiles for every player — batting/bowling averages, totals and records across all formats (per-player pages at `/players/<id>/`)
+- [Teams](https://cricketstatshindi.com/teams/index.html): International team pages with match records and win percentages (per-team pages at `/teams/<country>/`, e.g. `/teams/australia/`)
+- [Compare](https://cricketstatshindi.com/compare/index.html): Head-to-head player comparison pages (at `/compare/<player-a>-vs-<player-b>/`)
+- [Records](https://cricketstatshindi.com/records/index.html): All-time statistical leaderboards, with per-format pages at `/records/test/`, `/records/odi/`, `/records/t20i/` and `/records/ipl/`
+- [Tournaments](https://cricketstatshindi.com/tournaments/index.html): ICC tournament history — `/tournaments/world-cup/`, `/tournaments/t20-world-cup/` and `/tournaments/champions-trophy/`, each with per-edition pages by year (e.g. `/tournaments/world-cup/2011/`)
+- [Matches](https://cricketstatshindi.com/matches/index.html): Full ball-by-ball scorecards for every match (per-match pages at `/matches/<match-id>/`)
+- [This Day in Cricket](https://cricketstatshindi.com/aaj-ke-din/index.html): आज के दिन — cricket history for each calendar date (per-date pages at `/aaj-ke-din/MM-DD/`)
+- [Test](https://cricketstatshindi.com/test/index.html): Test cricket format hub — records, players and teams
+- [ODI](https://cricketstatshindi.com/odi/index.html): वनडे (ODI) format hub — records, players and teams
+- [T20I](https://cricketstatshindi.com/t20i/index.html): टी20आई (T20I) format hub — records, players and teams
+- [IPL](https://cricketstatshindi.com/ipl/index.html): Indian Premier League hub with season summaries (per-season pages by year, e.g. `/ipl/2024/`)
+- [About](https://cricketstatshindi.com/about/index.html): About the site and its data
+- [Privacy](https://cricketstatshindi.com/privacy/index.html): Privacy policy
+- [Sitemap](https://cricketstatshindi.com/sitemap.xml): Full XML sitemap of all pages
+
+## Data Sources
+
+- All cricket data comes from [Cricsheet.org](https://cricsheet.org) — free, open, ball-by-ball cricket data covering Test, ODI, T20I and IPL matches
+- Players are keyed by Cricsheet's stable people-registry id, so a player's record is merged across all formats automatically
+- Data is factual and statistical in nature
+
+## Contact
+
+- Email: info@cricketstatshindi.com
+
+## Notes
+
+- This is a static HTML site hosted on GitHub Pages with Cloudflare
+- All content is in Hindi (हिंदी, Devanagari script)
+- Not affiliated with the ICC, BCCI, IPL, or any cricket board or team
