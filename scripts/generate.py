@@ -139,6 +139,26 @@ def build_home(index, records, ipl, teams_d):
         return (f'<div class="bg-cr-card border border-cr-border rounded-xl p-4">'
                 f'<div class="flex items-center justify-between mb-2"><h3 class="hi font-heading font-bold text-cr-ink">{title}</h3>{fmt_badge(fkey)}</div>{rows}</div>')
 
+    latest_html = ""
+    lr = getattr(C, "LATEST_RESULTS", None)
+    if lr and lr.get("items"):
+        lr_cards = ""
+        for it in lr["items"]:
+            inner = (f'<div class="flex items-center justify-between mb-2">{fmt_badge(it["fmt"])}'
+                     f'<span class="hi text-xs text-cr-text tnum">{it["date"]}</span></div>'
+                     f'<div class="hi font-heading font-bold text-cr-ink">{it["title"]}</div>'
+                     f'<div class="hi text-xs text-cr-text mt-0.5">{it["venue"]}</div>'
+                     f'<div class="hi text-sm font-semibold text-cr-green mt-2">{it["result"]}</div>'
+                     f'<p class="hi text-sm text-cr-text leading-relaxed mt-1">{it["note"]}</p>')
+            if it.get("url"):
+                lr_cards += (f'<a href="{it["url"]}" class="block bg-cr-card border border-cr-border '
+                             f'rounded-xl p-4 hover:border-cr-green hover:shadow-md transition">{inner}'
+                             f'<div class="hi text-sm text-cr-green font-semibold mt-2">पूरा स्कोरकार्ड →</div></a>')
+            else:
+                lr_cards += f'<div class="bg-cr-card border border-cr-border rounded-xl p-4">{inner}</div>'
+        latest_html = (section_title('ताज़ा परिणाम', f'अंतरराष्ट्रीय क्रिकेट — अपडेट: {lr["updated"]}')
+                       + f'<section class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-10">{lr_cards}</section>')
+
     champ = ipl[-1] if ipl else None
     champ_html = ""
     if champ and champ.get("champion"):
@@ -163,10 +183,11 @@ def build_home(index, records, ipl, teams_d):
     </section>
     <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
       {stat('खिलाड़ी', f'{len(index):,}')}
-      {stat('मैच', '10,700+')}
+      {stat('मैच', '10,800+')}
       {stat('कुल रन', f'{total_runs/1_000_000:.1f}M')}
       {stat('प्रारूप', '4', 'टेस्ट · वनडे · टी20 · आईपीएल')}
     </section>
+    {latest_html}
     {champ_html}
     {section_title('प्रारूप', 'अपने पसंदीदा प्रारूप के आँकड़े देखें')}
     <section class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-10">{fmt_cards}</section>

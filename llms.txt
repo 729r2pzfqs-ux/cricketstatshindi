@@ -9,12 +9,12 @@ CricketStatsHindi (क्रिकेट आँकड़े) covers internationa
 - ~500 player profiles with career statistics across all formats, merged by Cricsheet people-registry id
 - ~125 international team pages with records and win percentages
 - 142 head-to-head player comparison pages
-- 8,064 full match scorecards (Test, ODI, T20I, IPL)
+- 8,120 full match scorecards (Test, ODI, T20I, IPL)
 - 366 "This Day in Cricket" (आज के दिन) pages — one for every calendar date
 - ICC tournament pages: World Cup, T20 World Cup, and Champions Trophy (every edition)
 - 19 IPL season summaries
 - All-time records leaderboards for Test, ODI, T20I and IPL
-- Data sourced from Cricsheet.org open ball-by-ball data (~10,720 matches processed)
+- Data sourced from Cricsheet.org open ball-by-ball data (~10,820 matches processed)
 - Language: Hindi (हिंदी / Devanagari)
 
 ## Sections

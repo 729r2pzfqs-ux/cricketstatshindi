@@ -10,7 +10,7 @@ match scorecards. All UI in Devanagari (`lang="hi"`).
 ## Data
 
 All data comes from [Cricsheet.org](https://cricsheet.org) — free, open
-ball-by-ball cricket data. ~10,720 matches processed.
+ball-by-ball cricket data. ~10,820 matches processed.
 
 ## Architecture
 
