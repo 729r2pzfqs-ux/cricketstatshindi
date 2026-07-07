@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import date
 import templates as TPL
 from templates import (T, FMT, FMT_DESC, SITE, BRAND_EN, esc, slug, hindi_name,
-                       fmt_badge, page, icon)
+                       full_name, fmt_badge, page, icon, WIKIPEDIA)
 import content as C
 import thisday as TD
 import tournaments as TT
@@ -50,8 +50,24 @@ def write(relpath, htmltext, priority="0.6"):
     urls.append((url if url != "/index.html"[:0] else "/", priority))
 
 
+def _write_redirect(relpath, target_url):
+    """Write a meta-refresh redirect HTML page (not added to sitemap)."""
+    name_hint = target_url.rstrip("/").split("/")[-1].replace("-", " ").title()
+    html_content = (
+        f'<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8">'
+        f'<meta http-equiv="refresh" content="0; url={target_url}">'
+        f'<link rel="canonical" href="{target_url}">'
+        f'<script>window.location.replace({json.dumps(target_url)});</script>'
+        f'<title>Moved — {name_hint}</title></head>'
+        f'<body><p>This page has moved to <a href="{target_url}">{target_url}</a>.</p>'
+        f'</body></html>')
+    p = OUT / relpath
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(html_content, encoding="utf-8")
+
+
 def player_url(pid, depth):
-    return "../" * depth + f"players/{pid}/"
+    return "../" * depth + f"players/{_PID_SLUG.get(pid, pid)}/"
 
 # ============================================================ UI fragments ===
 def stat(label, value, sub=""):
@@ -89,6 +105,10 @@ def table(headers, rows, align_right=None):
 # the start of main() so every link helper can gate on it.
 _PAGE_PIDS = set()
 
+# pid → human-readable URL slug. Populated in main() before any build_player()
+# calls. Falls back to the raw hash pid if a player has no slug yet.
+_PID_SLUG = {}
+
 
 def plink(pid, name, depth, extra=""):
     """Link to a player's profile if it exists, else render plain text.
@@ -97,11 +117,12 @@ def plink(pid, name, depth, extra=""):
     leaderboards reference ~1,600 players without pages. Gating here keeps
     those references as plain text instead of broken links.
     """
+    fn = full_name(name)
     hn = hindi_name(name)
     sub = f'<span class="hi text-cr-text text-xs ml-1">{hn}</span>' if hn else ""
     if not pid or pid not in _PAGE_PIDS:
-        return f'<span class="font-medium text-cr-ink">{esc(name)}</span>{sub}{extra}'
-    return f'<a href="{player_url(pid, depth)}" class="font-medium text-cr-ink hover:text-cr-green">{esc(name)}</a>{sub}{extra}'
+        return f'<span class="font-medium text-cr-ink">{esc(fn)}</span>{sub}{extra}'
+    return f'<a href="{player_url(pid, depth)}" class="font-medium text-cr-ink hover:text-cr-green">{esc(fn)}</a>{sub}{extra}'
 
 
 def team_link(name, depth):
@@ -114,10 +135,12 @@ def build_home(index, records, ipl, teams_d):
     top = index[:8]
     cards = ""
     for p in top:
+        fn = full_name(p["name"])
         hn = hindi_name(p["name"])
         badges = "".join(fmt_badge(f) for f in p["formats"])
-        cards += f"""<a href="players/{p['id']}/" class="group bg-cr-card border border-cr-border rounded-xl p-4 hover:border-cr-green hover:shadow-md transition">
-          <div class="font-heading font-bold text-cr-ink group-hover:text-cr-green">{esc(p['name'])}</div>
+        pslug = _PID_SLUG.get(p["id"], p["id"])
+        cards += f"""<a href="players/{pslug}/" class="group bg-cr-card border border-cr-border rounded-xl p-4 hover:border-cr-green hover:shadow-md transition">
+          <div class="font-heading font-bold text-cr-ink group-hover:text-cr-green">{esc(fn)}</div>
           {f'<div class="hi text-sm text-cr-text">{hn}</div>' if hn else ''}
           <div class="flex flex-wrap gap-1 my-2">{badges}</div>
           <div class="flex gap-4 text-sm"><span class="tnum"><b class="text-cr-ink">{p['runs']:,}</b> <span class="hi text-cr-text">रन</span></span>
@@ -134,7 +157,7 @@ def build_home(index, records, ipl, teams_d):
         for i, r in enumerate(items[:5]):
             rows += (f'<div class="flex items-center justify-between py-1.5 border-t border-cr-border first:border-0">'
                      f'<div class="truncate"><span class="text-cr-text text-xs mr-2 tnum">{i+1}</span>'
-                     f'<a href="players/{r["id"]}/" class="text-sm font-medium text-cr-ink hover:text-cr-green">{esc(r["name"])}</a></div>'
+                     f'<a href="players/{_PID_SLUG.get(r["id"], r["id"])}/" class="text-sm font-medium text-cr-ink hover:text-cr-green">{esc(full_name(r["name"]))}</a></div>'
                      f'<span class="tnum font-bold text-cr-green text-sm">{r["v"]}{valsuffix}</span></div>')
         return (f'<div class="bg-cr-card border border-cr-border rounded-xl p-4">'
                 f'<div class="flex items-center justify-between mb-2"><h3 class="hi font-heading font-bold text-cr-ink">{title}</h3>{fmt_badge(fkey)}</div>{rows}</div>')
@@ -268,7 +291,8 @@ def bowl_card(fkey, b):
 
 def build_player(p, depth=2):
     name = p["name"]
-    hn = hindi_name(name)
+    fn = full_name(name)        # full English name (e.g. "Virat Kohli")
+    hn = hindi_name(name)       # Devanagari name (e.g. "विराट कोहली")
     badges = "".join(fmt_badge(f) for f in p["formats"])
     teamhtml = " · ".join(team_link(t, depth) for t in p["teams"][:4])
 
@@ -297,7 +321,7 @@ def build_player(p, depth=2):
       <div class="flex items-start gap-4">
         <div class="w-14 h-14 rounded-xl pitch-stripe text-white flex items-center justify-center font-heading font-extrabold text-2xl shrink-0">{esc(name[0])}</div>
         <div class="min-w-0">
-          <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-cr-ink leading-tight">{esc(name)}</h1>
+          <h1 class="font-heading font-extrabold text-2xl sm:text-3xl text-cr-ink leading-tight">{esc(fn)}</h1>
           {f'<div class="hi text-lg text-cr-green font-semibold">{hn}</div>' if hn else ''}
           <div class="hi text-sm text-cr-text mt-1">{teamhtml}</div>
           <div class="flex flex-wrap gap-1.5 mt-2">{badges}</div>
@@ -314,18 +338,47 @@ def build_player(p, depth=2):
     </div>
     """
     fmts_hi = ", ".join(FMT[f][0] for f in p["formats"])
-    desc = (f"{name}{(' ('+hn+')') if hn else ''} के क्रिकेट आँकड़े — {fmts_hi} में "
-            f"{p['total_runs']:,} रन और {p['total_wkts']} विकेट। बल्लेबाज़ी व गेंदबाज़ी औसत, स्ट्राइक रेट और करियर रिकॉर्ड हिंदी में।")[:300]
-    title = f"{name}{(' '+hn) if hn else ''} — क्रिकेट आँकड़े व करियर रिकॉर्ड"
-    jsonld = {"@context": "https://schema.org", "@type": "Person", "name": name,
-              "url": f"{SITE}/players/{p['id']}/", "jobTitle": "Cricketer",
-              "nationality": p["teams"][0] if p["teams"] else None}
-    trail = [("होम", "../" * depth), (T['players'], "../" * depth + "players/"), (name, None)]
-    write(f"players/{p['id']}/index.html",
-          page(title, desc, f"/players/{p['id']}/", depth, body,
+    fmts_en = ", ".join(p["formats"])
+    pslug = _PID_SLUG.get(p["id"], p["id"])
+    canon_path = f"/players/{pslug}/"
+
+    # Bilingual description: English keywords first for Roman-script searchers,
+    # Hindi content at the end for the core Hindi-speaking audience.
+    wkt_word = "wicket" if p['total_wkts'] == 1 else "wickets"
+    desc = (f"{fn} career stats — {p['total_runs']:,} runs, {p['total_wkts']} {wkt_word} "
+            f"({fmts_en}). {fn}{(' ('+hn+')') if hn else ''} के करियर आँकड़े, "
+            f"बल्लेबाज़ी औसत और स्ट्राइक रेट हिंदी में।")[:300]
+
+    title = f"{fn}{(' '+hn) if hn else ''} — Cricket Stats | क्रिकेट आँकड़े"
+
+    # Enriched JSON-LD Person schema
+    jsonld = {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": fn,
+        "url": f"{SITE}{canon_path}",
+        "jobTitle": "Cricketer",
+        "nationality": p["teams"][0] if p["teams"] else None,
+        "description": (f"{fn} is a professional cricketer with {p['total_runs']:,} career "
+                        f"runs and {p['total_wkts']} {wkt_word} across {fmts_en}."),
+    }
+    wiki = TPL.WIKIPEDIA.get(name)
+    if wiki:
+        jsonld["sameAs"] = [f"https://en.wikipedia.org/wiki/{wiki}"]
+
+    trail = [("होम", "../" * depth), (T['players'], "../" * depth + "players/"), (fn, None)]
+    write(f"players/{pslug}/index.html",
+          page(title, desc, canon_path, depth, body,
                active="players", trail=trail, jsonld=jsonld, og_type="profile"), "0.7")
-    search_rows.append([name, f"/players/{p['id']}/", "खिलाड़ी",
-                        f"{name} {hn or ''} {' '.join(p['teams'][:2])} cricket stats khiladi".lower()])
+
+    # Redirect old hash-based URL to new slug URL so existing Google index
+    # entries resolve correctly.
+    if p["id"] != pslug:
+        _write_redirect(f"players/{p['id']}/index.html",
+                        f"{SITE}{canon_path}")
+
+    search_rows.append([fn, canon_path, "खिलाड़ी",
+                        f"{fn} {name} {hn or ''} {' '.join(p['teams'][:2])} cricket stats khiladi".lower()])
 
 
 def build_players_index(index):
@@ -654,6 +707,8 @@ def build_compare(full, index, grouped):
 
 def build_h2h(pa, pb):
     depth = 2
+    fna = full_name(pa['name'])
+    fnb = full_name(pb['name'])
     s = f"{slug(pa['name'])}-vs-{slug(pb['name'])}"
 
     def cmp_row(label, va, vb, higher_better=True):
@@ -692,32 +747,32 @@ def build_h2h(pa, pb):
             rows += cmp_row("इकॉनमी", g(wa,'econ'), g(wb,'econ'), higher_better=False)
         blocks += f"""<div class="mb-6"><div class="flex items-center gap-2 mb-2">{fmt_badge(fkey)}<h3 class="hi font-heading font-bold text-cr-ink">{FMT[fkey][0]}</h3></div>
           <div class="bg-cr-card border border-cr-border rounded-xl overflow-hidden"><table class="w-full"><thead class="bg-cr-bg"><tr>
-          <th class="px-3 py-2 text-right text-xs font-bold text-cr-ink">{esc(pa['name'])}</th>
+          <th class="px-3 py-2 text-right text-xs font-bold text-cr-ink">{esc(fna)}</th>
           <th class="px-3 py-2 text-center text-xs font-bold text-cr-text hi">आँकड़ा</th>
-          <th class="px-3 py-2 text-left text-xs font-bold text-cr-ink">{esc(pb['name'])}</th></tr></thead>
+          <th class="px-3 py-2 text-left text-xs font-bold text-cr-ink">{esc(fnb)}</th></tr></thead>
           <tbody>{rows}</tbody></table></div></div>"""
 
     body = f"""
     <div class="grid grid-cols-2 gap-3 mb-6">
-      <a href="../../players/{pa['id']}/" class="bg-cr-card border border-cr-border rounded-xl p-4 text-center hover:border-cr-green">
-        <div class="w-12 h-12 mx-auto rounded-xl pitch-stripe text-white flex items-center justify-center font-heading font-extrabold text-xl mb-2">{esc(pa['name'][0])}</div>
-        <div class="font-heading font-bold text-cr-ink">{esc(pa['name'])}</div>
+      <a href="../../players/{_PID_SLUG.get(pa['id'], pa['id'])}/" class="bg-cr-card border border-cr-border rounded-xl p-4 text-center hover:border-cr-green">
+        <div class="w-12 h-12 mx-auto rounded-xl pitch-stripe text-white flex items-center justify-center font-heading font-extrabold text-xl mb-2">{esc(fna[0])}</div>
+        <div class="font-heading font-bold text-cr-ink">{esc(fna)}</div>
         {f'<div class="hi text-sm text-cr-text">{hindi_name(pa["name"])}</div>' if hindi_name(pa['name']) else ''}</a>
-      <a href="../../players/{pb['id']}/" class="bg-cr-card border border-cr-border rounded-xl p-4 text-center hover:border-cr-green">
-        <div class="w-12 h-12 mx-auto rounded-xl pitch-stripe text-white flex items-center justify-center font-heading font-extrabold text-xl mb-2">{esc(pb['name'][0])}</div>
-        <div class="font-heading font-bold text-cr-ink">{esc(pb['name'])}</div>
+      <a href="../../players/{_PID_SLUG.get(pb['id'], pb['id'])}/" class="bg-cr-card border border-cr-border rounded-xl p-4 text-center hover:border-cr-green">
+        <div class="w-12 h-12 mx-auto rounded-xl pitch-stripe text-white flex items-center justify-center font-heading font-extrabold text-xl mb-2">{esc(fnb[0])}</div>
+        <div class="font-heading font-bold text-cr-ink">{esc(fnb)}</div>
         {f'<div class="hi text-sm text-cr-text">{hindi_name(pb["name"])}</div>' if hindi_name(pb['name']) else ''}</a>
     </div>
     {C.h2h_intro_html(pa, pb)}
     {section_title('प्रारूप अनुसार तुलना', 'हरे रंग में बेहतर आँकड़ा')}
     {blocks}"""
-    title = f"{pa['name']} बनाम {pb['name']} — तुलना | क्रिकेट आँकड़े"
-    desc = f"{pa['name']} बनाम {pb['name']} की हेड-टू-हेड तुलना हिंदी में — रन, औसत, स्ट्राइक रेट, विकेट और करियर आँकड़ों की आमने-सामने तुलना सभी प्रारूपों में।"
+    title = f"{fna} बनाम {fnb} — तुलना | क्रिकेट आँकड़े"
+    desc = f"{fna} vs {fnb} head-to-head comparison — runs, average, strike rate, wickets across all formats. {fna} बनाम {fnb} की हेड-टू-हेड तुलना हिंदी में।"
     write(f"compare/{s}/index.html",
           page(title, desc, f"/compare/{s}/", depth, body, active="compare",
-               trail=[("होम", "../../"), (T['compare'], "../"), (f"{pa['name']} बनाम {pb['name']}", None)]), "0.6")
-    search_rows.append([f"{pa['name']} बनाम {pb['name']}", f"/compare/{s}/", "तुलना",
-                        f"{pa['name']} vs {pb['name']} compare h2h".lower()])
+               trail=[("होम", "../../"), (T['compare'], "../"), (f"{fna} बनाम {fnb}", None)]), "0.6")
+    search_rows.append([f"{fna} बनाम {fnb}", f"/compare/{s}/", "तुलना",
+                        f"{fna} {pa['name']} vs {fnb} {pb['name']} compare h2h".lower()])
 
 
 # =============================================================== SCORECARDS ===
@@ -734,12 +789,14 @@ _SC_TEAMSLUGS = set()
 def _sc_plink(name, registry, depth):
     """Link a player by name to their profile when one exists, else plain name."""
     pid = registry.get(name)
+    fn = full_name(name)
     hn = hindi_name(name)
     sub = f' <span class="hi text-cr-text text-xs">{hn}</span>' if hn else ""
     if pid and pid in _SC_PIDS:
-        return (f'<a href="{"../"*depth}players/{pid}/" '
-                f'class="font-medium text-cr-ink hover:text-cr-green">{esc(name)}</a>{sub}')
-    return f'<span class="font-medium text-cr-ink">{esc(name)}</span>{sub}'
+        pslug = _PID_SLUG.get(pid, pid)
+        return (f'<a href="{"../"*depth}players/{pslug}/" '
+                f'class="font-medium text-cr-ink hover:text-cr-green">{esc(fn)}</a>{sub}')
+    return f'<span class="font-medium text-cr-ink">{esc(fn)}</span>{sub}'
 
 
 def _sc_tlink(name, depth):
@@ -1057,9 +1114,10 @@ def plink_safe(pid, name, depth):
     pid = pid or _TOUR_NAME2ID.get(name)
     if pid and pid in _TOUR_PIDS:
         return plink(pid, name, depth)
+    fn = full_name(name)
     hn = hindi_name(name)
     sub = f' <span class="hi text-cr-text text-xs">{hn}</span>' if hn else ""
-    return f'<span class="font-medium text-cr-ink">{esc(name)}</span>{sub}'
+    return f'<span class="font-medium text-cr-ink">{esc(fn)}</span>{sub}'
 
 
 def team_link_safe(name, depth):
@@ -1552,6 +1610,27 @@ def write_favicons():
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def compile_tailwind():
+    """Compile Tailwind CSS from all generated HTML. Requires node_modules/.bin/tailwindcss."""
+    cli = ROOT / "node_modules" / ".bin" / "tailwindcss"
+    if not cli.exists():
+        print("  Tailwind CLI not found — skipping compilation.")
+        return
+    inp = ROOT / "input.css"
+    out_css = OUT / "site.css"
+    try:
+        r = subprocess.run(
+            [str(cli), "-i", str(inp), "-o", str(out_css), "--minify"],
+            cwd=ROOT, capture_output=True, text=True, timeout=300
+        )
+        if r.returncode == 0:
+            print(f"  Tailwind CSS compiled: {out_css.stat().st_size:,} bytes")
+        else:
+            print(f"  Tailwind compilation warning: {r.stderr[:300]}")
+    except Exception as e:
+        print(f"  Tailwind compilation failed: {e}")
+
+
 def write_static():
     # favicon
     (OUT / "favicon.svg").write_text(
@@ -1703,12 +1782,14 @@ def build_thisday(index, full):
 
     def plink_name(name, depth):
         pid = name2id.get(name)
+        fn = full_name(name)
         hn = hindi_name(name)
         sub = f' <span class="hi text-cr-text text-xs">{hn}</span>' if hn else ""
         if pid:
-            return (f'<a href="{"../"*depth}players/{pid}/" '
-                    f'class="font-medium text-cr-ink hover:text-cr-green">{esc(name)}</a>{sub}')
-        return f'<span class="font-medium text-cr-ink">{esc(name)}</span>{sub}'
+            pslug = _PID_SLUG.get(pid, pid)
+            return (f'<a href="{"../"*depth}players/{pslug}/" '
+                    f'class="font-medium text-cr-ink hover:text-cr-green">{esc(fn)}</a>{sub}')
+        return f'<span class="font-medium text-cr-ink">{esc(fn)}</span>{sub}'
 
     def tlink(name, depth):
         if slug(name) in team_slugs:
@@ -1973,11 +2054,27 @@ def build_thisday(index, full):
 
 # ===================================================================== MAIN ===
 def main():
-    global _PAGE_PIDS
+    global _PAGE_PIDS, _PID_SLUG
     print("Loading processed data…")
     index = load("players_index.json")
     # Players with generated profile pages — gate every player link on this.
     _PAGE_PIDS = {p["id"] for p in index[:N_PLAYERS]}
+
+    # Build pid → URL slug mapping for all profile pages.
+    # Uses the full English name where available, else the abbreviated Cricsheet
+    # name. Collision-safe: appends "-2", "-3", etc. if slugs clash.
+    _PID_SLUG = {}
+    _slug_seen = set()
+    for p in index[:N_PLAYERS]:
+        fn = full_name(p["name"])
+        base = slug(fn)
+        candidate = base
+        counter = 2
+        while candidate in _slug_seen:
+            candidate = f"{base}-{counter}"
+            counter += 1
+        _slug_seen.add(candidate)
+        _PID_SLUG[p["id"]] = candidate
     full = load("players_full.json")
     records = load("records.json")
     ipl = load("ipl.json")
@@ -2106,6 +2203,8 @@ def main():
     print("Writing static assets + sitemap…")
     write_static()
     n = write_sitemap()
+    print("Compiling Tailwind CSS…")
+    compile_tailwind()
     print(f"DONE. {n} URLs, {len(search_rows)} search entries.")
 
 

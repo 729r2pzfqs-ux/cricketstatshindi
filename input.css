@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Inter, 'Noto Sans Devanagari', sans-serif;
+  background: #f5f8f4;
+  color: #16241b;
+}
+h1, h2, h3, h4, h5 {
+  font-family: 'Baloo 2', 'Noto Sans Devanagari', sans-serif;
+}
+.hi {
+  font-family: 'Noto Sans Devanagari', 'Baloo 2', sans-serif;
+}
+.pitch-stripe {
+  background: linear-gradient(90deg, #15803d, #22c55e);
+}
+tbody tr:hover td {
+  background: #f0f7f0;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+::selection {
+  background: #bbf7d0;
+}

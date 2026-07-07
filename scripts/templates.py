@@ -63,6 +63,92 @@ HINDI_NAMES = {
 }
 
 
+# Full common English names for Cricsheet-abbreviated player names.
+# Used in titles, H1s, meta descriptions, and JSON-LD to match search queries.
+FULL_NAMES = {
+    "V Kohli": "Virat Kohli", "RG Sharma": "Rohit Sharma",
+    "JJ Bumrah": "Jasprit Bumrah", "R Ashwin": "Ravichandran Ashwin",
+    "RA Jadeja": "Ravindra Jadeja", "HH Pandya": "Hardik Pandya",
+    "B Kumar": "Bhuvneshwar Kumar", "G Gambhir": "Gautam Gambhir",
+    "V Sehwag": "Virender Sehwag", "Z Khan": "Zaheer Khan",
+    "SK Raina": "Suresh Raina", "CH Gayle": "Chris Gayle",
+    "DA Warner": "David Warner", "SPD Smith": "Steve Smith",
+    "KS Williamson": "Kane Williamson", "JM Anderson": "James Anderson",
+    "SCJ Broad": "Stuart Broad", "JC Buttler": "Jos Buttler",
+    "BB McCullum": "Brendon McCullum", "MA Starc": "Mitchell Starc",
+    "PJ Cummins": "Pat Cummins", "NM Lyon": "Nathan Lyon",
+    "KA Pollard": "Kieron Pollard", "AD Russell": "Andre Russell",
+    "SP Narine": "Sunil Narine", "Q de Kock": "Quinton de Kock",
+    "RR Pant": "Rishabh Pant", "JO Holder": "Jason Holder",
+    "TM Head": "Travis Head", "H Klaasen": "Heinrich Klaasen",
+    "SR Tendulkar": "Sachin Tendulkar", "RT Ponting": "Ricky Ponting",
+    "KC Sangakkara": "Kumar Sangakkara", "JH Kallis": "Jacques Kallis",
+    "JE Root": "Joe Root", "BA Stokes": "Ben Stokes",
+    "DW Steyn": "Dale Steyn", "SL Malinga": "Lasith Malinga",
+    "K Rabada": "Kagiso Rabada", "DPMD Jayawardene": "Mahela Jayawardene",
+    "S Dhawan": "Shikhar Dhawan", "AM Rahane": "Ajinkya Rahane",
+    "SA Yadav": "Suryakumar Yadav", "M Labuschagne": "Marnus Labuschagne",
+    "JC Archer": "Jofra Archer", "HM Amla": "Hashim Amla",
+    "GC Smith": "Graeme Smith", "AN Cook": "Alastair Cook",
+    "KP Pietersen": "Kevin Pietersen", "MJ Clarke": "Michael Clarke",
+    "DJ Bravo": "Dwayne Bravo", "MM Ali": "Moeen Ali",
+    "F du Plessis": "Faf du Plessis", "R Dravid": "Rahul Dravid",
+    "A Kumble": "Anil Kumble", "SK Warne": "Shane Warne",
+    "M Muralitharan": "Muttiah Muralitharan", "BC Lara": "Brian Lara",
+    "GD McGrath": "Glenn McGrath", "GJ Maxwell": "Glenn Maxwell",
+    "DA Miller": "David Miller", "TA Boult": "Trent Boult",
+    "YS Chahal": "Yuzvendra Chahal", "SR Watson": "Shane Watson",
+    "AD Mathews": "Angelo Mathews", "VVS Laxman": "VVS Laxman",
+    "KL Rahul": "KL Rahul", "MS Dhoni": "MS Dhoni",
+    "AB de Villiers": "AB de Villiers", "Babar Azam": "Babar Azam",
+    "Shakib Al Hasan": "Shakib Al Hasan", "Rashid Khan": "Rashid Khan",
+    "Mohammed Shami": "Mohammed Shami", "Mohammed Siraj": "Mohammed Siraj",
+    "Harbhajan Singh": "Harbhajan Singh", "Mohammad Rizwan": "Mohammad Rizwan",
+    "Fakhar Zaman": "Fakhar Zaman", "Kuldeep Yadav": "Kuldeep Yadav",
+    "Mustafizur Rahman": "Mustafizur Rahman",
+    "Shaheen Shah Afridi": "Shaheen Shah Afridi",
+    "Imran Tahir": "Imran Tahir", "Mohammad Amir": "Mohammad Amir",
+    "Wahab Riaz": "Wahab Riaz", "Saeed Ajmal": "Saeed Ajmal",
+    "Shubman Gill": "Shubman Gill", "Yuvraj Singh": "Yuvraj Singh",
+}
+
+# Wikipedia article slugs for sameAs JSON-LD — only verified entries.
+WIKIPEDIA = {
+    "V Kohli": "Virat_Kohli", "RG Sharma": "Rohit_Sharma",
+    "MS Dhoni": "MS_Dhoni", "SR Tendulkar": "Sachin_Tendulkar",
+    "JJ Bumrah": "Jasprit_Bumrah", "R Ashwin": "Ravichandran_Ashwin",
+    "RA Jadeja": "Ravindra_Jadeja", "HH Pandya": "Hardik_Pandya",
+    "V Sehwag": "Virender_Sehwag", "R Dravid": "Rahul_Dravid",
+    "A Kumble": "Anil_Kumble", "BC Lara": "Brian_Lara",
+    "SK Warne": "Shane_Warne", "GD McGrath": "Glenn_McGrath",
+    "M Muralitharan": "Muttiah_Muralitharan", "RT Ponting": "Ricky_Ponting",
+    "JH Kallis": "Jacques_Kallis", "KC Sangakkara": "Kumar_Sangakkara",
+    "DPMD Jayawardene": "Mahela_Jayawardene", "DA Warner": "David_Warner",
+    "SPD Smith": "Steve_Smith_(cricketer)", "KS Williamson": "Kane_Williamson",
+    "JE Root": "Joe_Root", "BA Stokes": "Ben_Stokes",
+    "JM Anderson": "James_Anderson_(cricketer)", "SCJ Broad": "Stuart_Broad",
+    "JC Buttler": "Jos_Buttler", "MA Starc": "Mitchell_Starc",
+    "PJ Cummins": "Pat_Cummins", "K Rabada": "Kagiso_Rabada",
+    "DW Steyn": "Dale_Steyn", "AB de Villiers": "AB_de_Villiers",
+    "CH Gayle": "Chris_Gayle_(cricketer)", "RR Pant": "Rishabh_Pant",
+    "Q de Kock": "Quinton_de_Kock", "Shakib Al Hasan": "Shakib_Al_Hasan",
+    "Babar Azam": "Babar_Azam", "Rashid Khan": "Rashid_Khan_(cricketer)",
+    "GC Smith": "Graeme_Smith", "HM Amla": "Hashim_Amla",
+    "Harbhajan Singh": "Harbhajan_Singh", "Yuvraj Singh": "Yuvraj_Singh",
+    "SK Raina": "Suresh_Raina", "VVS Laxman": "VVS_Laxman",
+    "G Gambhir": "Gautam_Gambhir", "Z Khan": "Zaheer_Khan",
+    "KA Pollard": "Kieron_Pollard", "AD Russell": "Andre_Russell_(cricketer)",
+    "SP Narine": "Sunil_Narine", "GJ Maxwell": "Glenn_Maxwell",
+    "S Dhawan": "Shikhar_Dhawan", "SA Yadav": "Suryakumar_Yadav",
+    "Shubman Gill": "Shubman_Gill", "Mohammed Shami": "Mohammed_Shami",
+}
+
+
+def full_name(name):
+    """Return the full common English name for a Cricsheet-abbreviated name."""
+    return FULL_NAMES.get(name, name)
+
+
 def esc(s):
     return html.escape(str(s), quote=True)
 
@@ -146,6 +232,8 @@ gtag('config', 'G-Y5ZLWWSDPZ');
 <meta name="description" content="{esc(desc)}">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="{esc(canon)}">
+<link rel="alternate" hreflang="hi" href="{esc(canon)}">
+<link rel="alternate" hreflang="x-default" href="{esc(canon)}">
 <meta property="og:title" content="{esc(title)}">
 <meta property="og:description" content="{esc(desc)}">
 <meta property="og:url" content="{esc(canon)}">
@@ -167,29 +255,7 @@ gtag('config', 'G-Y5ZLWWSDPZ');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = {{ theme: {{ extend: {{
-  colors: {{
-    'cr-green':'#15803d','cr-dark':'#14532d','cr-accent':'#22c55e',
-    'cr-bg':'#f5f8f4','cr-card':'#ffffff','cr-border':'#e2e8e0',
-    'cr-text':'#52635a','cr-ink':'#16241b','cr-pitch':'#c9b079','cr-ball':'#a4161a'
-  }},
-  fontFamily: {{
-    heading:['"Baloo 2"','"Noto Sans Devanagari"','sans-serif'],
-    body:['Inter','"Noto Sans Devanagari"','sans-serif']
-  }}
-}} }} }}
-</script>
-<style>
-  body{{font-family:Inter,'Noto Sans Devanagari',sans-serif;background:#f5f8f4;color:#16241b}}
-  h1,h2,h3,h4,h5{{font-family:'Baloo 2','Noto Sans Devanagari',sans-serif}}
-  .hi{{font-family:'Noto Sans Devanagari','Baloo 2',sans-serif}}
-  .pitch-stripe{{background:linear-gradient(90deg,#15803d,#22c55e)}}
-  tbody tr:hover td{{background:#f0f7f0}}
-  .tnum{{font-variant-numeric:tabular-nums}}
-  ::selection{{background:#bbf7d0}}
-</style>
+<link rel="stylesheet" href="{up}site.css">
 {ld}
 </head>
 <body class="min-h-screen flex flex-col">

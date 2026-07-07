@@ -1,0 +1,10 @@
+{
+  "name": "cricketstatshindi",
+  "private": true,
+  "scripts": {
+    "css": "tailwindcss -i input.css -o site.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

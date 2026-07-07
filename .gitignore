@@ -10,3 +10,7 @@ __pycache__/
 
 # Local preview config
 .claude/launch.json
+
+# Node dev dependencies
+node_modules/
+package-lock.json
