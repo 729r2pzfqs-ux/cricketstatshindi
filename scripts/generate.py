@@ -944,8 +944,18 @@ def build_scorecard_page(m):
             f"{_sc_result_line(m)}। पूरा बल्लेबाज़ी, गेंदबाज़ी विवरण व विकेट पतन।")[:300]
     ld = {"@context": "https://schema.org", "@type": "SportsEvent",
           "name": f"{' v '.join(teams)} — {m['event'] or fkey} {m['year']}",
-          "startDate": m["date"], "sport": "Cricket",
-          "location": {"@type": "Place", "name": m["venue"] or m["city"]},
+          "description": desc,
+          "startDate": m["date"],
+          "endDate": m.get("end_date") or m["date"],
+          "eventStatus": "https://schema.org/EventScheduled",
+          "sport": "Cricket",
+          "location": {"@type": "Place", "name": m["venue"] or m["city"],
+                       "address": {"@type": "PostalAddress",
+                                   "addressLocality": m["city"] or m["venue"]}},
+          "offers": {"@type": "Offer", "url": f"{SITE}/matches/{m['id']}/",
+                     "price": "0", "priceCurrency": "INR",
+                     "availability": "https://schema.org/InStock",
+                     "validFrom": m["date"]},
           "competitor": [{"@type": "SportsTeam", "name": t} for t in teams]}
     write(f"matches/{m['id']}/index.html",
           page(title, desc, f"/matches/{m['id']}/", depth, body, active="matches",
@@ -1435,9 +1445,24 @@ def build_tournament_edition(t, ed, prev_ed, next_ed):
     desc = (f"{t['short']} {year} आँकड़े हिंदी में — मेज़बान {ed['host']}। {champ_txt}"
             f"नॉकआउट नतीजे, फ़ाइनल स्कोरकार्ड, सर्वाधिक रन व विकेट और शीर्ष प्रदर्शनकर्ता।")[:300]
     title = f"{t['short']} {year} — चैंपियन, फ़ाइनल व शीर्ष प्रदर्शन | क्रिकेट आँकड़े"
+    ed_dates = sorted(m["date"] for m in (ed["groups"] + ed["knockouts"])
+                      if m.get("date"))
     jsonld = {"@context": "https://schema.org", "@type": "SportsEvent",
               "name": f"{t['title']} {year}", "sport": "Cricket",
+              "description": desc,
+              "eventStatus": "https://schema.org/EventScheduled",
+              "location": {"@type": "Place", "name": ed["host"],
+                           "address": {"@type": "PostalAddress",
+                                       "addressLocality": ed["host"]}},
+              "offers": {"@type": "Offer",
+                         "url": f"{SITE}/tournaments/{key}/{year}/",
+                         "price": "0", "priceCurrency": "INR",
+                         "availability": "https://schema.org/InStock"},
               "url": f"{SITE}/tournaments/{key}/{year}/"}
+    if ed_dates:
+        jsonld["startDate"] = ed_dates[0]
+        jsonld["endDate"] = ed_dates[-1]
+        jsonld["offers"]["validFrom"] = ed_dates[0]
     if champ_hi:
         jsonld["winner"] = {"@type": "SportsTeam", "name": ed["champion"]}
     write(f"tournaments/{key}/{year}/index.html",

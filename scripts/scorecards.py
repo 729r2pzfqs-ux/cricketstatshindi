@@ -251,6 +251,7 @@ def parse_match(path):
         "id": Path(path).stem,
         "fmt": DIRS_OF.get(Path(path).parent.name, ""),
         "date": date0,
+        "end_date": str(dates[-1]),
         "year": year,
         "season": str(info.get("season", "")),
         "event": ev.get("name", "") or "",
