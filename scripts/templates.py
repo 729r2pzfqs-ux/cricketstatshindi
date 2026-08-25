@@ -220,6 +220,8 @@ def head(title, desc, canonical, depth, jsonld=None, og_type="website"):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Ahrefs Web Analytics -->
+<script src="https://analytics.ahrefs.com/analytics.js" data-key="oAhpT2xbkF5vPteFaag2sw" async></script>
 <!-- Google Analytics (GA4) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y5ZLWWSDPZ"></script>
 <script>
